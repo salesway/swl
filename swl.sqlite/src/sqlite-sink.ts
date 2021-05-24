@@ -1,39 +1,34 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { group, flag, arg, parse_args, param, log, sink } from 'swl'
+import { log, sink, optparser } from 'swl'
 import { coerce } from './common'
 import * as DB from 'better-sqlite3'
 
+let col_parser = optparser()
+  .arg('name')
+  .flag('truncate', {short: 't', long: 'truncate'})
+  .flag('drop', {short: 'd', long: 'drop'})
 
-export class SqliteSinkCollectionOptions {
-  @arg name: string = ''
-  @flag('t', {long: 'truncate'}) truncate: boolean = false
-  @flag('d', {long: 'drop'}) drop: boolean = false
-}
-
-
-export class SqliteSinkOptions {
-  @arg file: string = ''
-  @flag('t', {long: 'truncate'}) truncate: boolean = false
-  @flag('d', {long: 'drop'}) drop: boolean = false
-  @flag('u', {long: 'upsert'}) upsert: boolean = false
-  @param('a', {long: 'pragma'}) pragma: string[] = []
-  @flag('p', {long: 'passthrough'}) passthrough: boolean = false
-  @flag('v', {long: 'verbose'}) verbose: boolean = false
-
-  @group(SqliteSinkCollectionOptions) collections: SqliteSinkCollectionOptions[] = []
-
-  post() {
-    for (let c of this.collections) {
-      if (this.truncate) c.truncate = true
-      if (this.drop) c.drop = true
+let opts_parser = optparser()
+  .arg('file')
+  .flag('truncate', {short: 't', long: 'truncate'})
+  .flag('drop', {short: 'd', long: 'drop'})
+  .flag('upsert', {short: 'u', long: 'upsert'})
+  // .param('a', {long: 'pragma'}) pragma: string[] = []
+  .flag('passthrough', {short: 'p', long: 'passthrough'})
+  .flag('verbose', {short: 'v', long: 'verbose'})
+  .sub('collections', col_parser)
+  .post(opts => {
+    for (let c of opts.collections) {
+      if (opts.truncate) c.truncate = true
+      if (opts.drop) c.drop = true
     }
 
-    if (!this.file) throw new Error('sqlite source expects a file name')
-  }
-}
+    if (!opts.file) throw new Error('sqlite source expects a file name')
+  })
 
-let opts = parse_args(SqliteSinkOptions)
+let opts = opts_parser.parse()
+
 
 function exec(stmt: string) {
   if (opts.verbose) log(stmt)
@@ -86,16 +81,16 @@ function collection_handler(name: string, start: any): sink.CollectionHandler {
 }
 
 let db = new DB(opts.file, { fileMustExist: false })
-if (opts.pragma) {
+// if (opts.pragma) {
 
-}
+// }
 
-let journal_mode = db.pragma('journal_mode')
-let synchronous = db.pragma('synchronous')
-let locking_mode = db.pragma('locking_mode')
-db.pragma('journal_mode = off')
-db.pragma('synchronous = 0')
-db.pragma('locking_mode = EXCLUSIVE')
+// let journal_mode = db.pragma('journal_mode')
+// let synchronous = db.pragma('synchronous')
+// let locking_mode = db.pragma('locking_mode')
+// db.pragma('journal_mode = off')
+// db.pragma('synchronous = 0')
+// db.pragma('locking_mode = EXCLUSIVE')
 
 sink.registerHandler((): sink.Handler => {
   db.exec('BEGIN')

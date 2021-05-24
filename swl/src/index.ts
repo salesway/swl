@@ -289,108 +289,108 @@ export namespace util {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-type Handler = (inst: any, args: string[], pos: number) => number | void
-
-const handlers_sym = Symbol('handlers')
-
-function add_handler(inst: any, h: Handler) {
-  (inst[handlers_sym] = inst[handlers_sym] ?? []).push(h)
+export interface FlagOpts {
+  short: string
+  long?: string
+  help?: string
 }
 
-export function param(short: string, opts: { long?: string }) {
-  short = '-' + short
-  let long = opts?.long ? '--' + opts?.long : ''
-  return function (target: any, name: string) {
-    add_handler(target, function option(inst, args, pos) {
-      let arg = args[pos]
-      if (arg !== short && arg !== long) return pos
-      if (pos >= args.length - 1) throw new Error(`option ${short} expects an argument`)
-      inst[name] = args[pos + 1]
-      return pos + 2
-    })
+export class OptionParser<T = {}> {
+  private handlers: ((inst: T, args: string[], pos: number) => number)[] = []
+  private builders: ((inst: T) => void)[] = []
+
+  prebuild(): T {
+    let res = {} as T
+    for (let b of this.builders) b(res)
+    return res
   }
-}
 
-export function flag(short: string, opts: {long?: string} = {}) {
-  short = '-' + short
-  let long = opts?.long ? '--' + opts?.long : ''
-  return function(target: any, name: string) {
-    if (Reflect.getMetadata('design:type', target, name) !== Boolean) {
-      throw new Error(`on property '${name}': flag only works on :boolean properties`)
-    }
-    function flag(inst: any, args: string[], pos: number) {
+  flag<K extends string>(key: K, opts: FlagOpts): OptionParser<T & {[key in K]: boolean}> {
+    let short = '-' + opts.short
+    let long = opts?.long ? '--' + opts?.long : ''
+
+    this.handlers.push(function flag(inst: any, args: string[], pos: number) {
       let arg = args[pos]
       if (arg === short || arg === long) {
         // yes !
-        inst[name] = true
+        inst[key] = true
         return pos + 1
       }
-    }
-
-    add_handler(target, flag)
+      return pos
+    })
+    return this as any
   }
-}
 
-export function arg(target: any, name: string) {
-  const found = Symbol('found')
-  if (Reflect.getMetadata('design:type', target, name) !== String)
-    throw new Error(`arg on '${name}' expects a string`)
+  param<K extends string>(key: K, opts: FlagOpts): OptionParser<T & {[key in K]: string}> {
+    let short = '-' + opts.short
+    let long = opts?.long ? '--' + opts?.long : ''
+    this.handlers.push(function option(inst: any, args, pos) {
+      let arg = args[pos]
+      if (arg !== short && arg !== long) return pos
+      if (pos >= args.length - 1) throw new Error(`option ${short} expects an argument`)
+      inst[key] = args[pos + 1]
+      return pos + 2
+    })
 
-  add_handler(target, function arg(inst, args, pos) {
-    if (inst[found]) return undefined
-    let arg = args[pos]
-    if (arg[0] === '-') return pos
-    inst[name] = arg
-    Object.defineProperty(inst, found, { enumerable: false, value: true })
-    return pos + 1
-  })
-}
+    return this as any
+  }
 
-/**
- * A simple positional argument
- */
-export function rest(target: any, name: string) {
-  add_handler(target, function rest(inst, args, pos) {
-    inst[name].push(args[pos])
-    return pos + 1
-  })
-}
+  arg<K extends string>(key: K): OptionParser<T & {[key in K]: string}> {
+    let found = Symbol('found-' + key)
+    this.handlers.push(function arg(inst: any, args, pos) {
+      if (inst[found]) return pos
+      let arg = args[pos]
+      if (arg[0] === '-') return pos
+      inst[key] = arg
+      Object.defineProperty(inst, found, { enumerable: false, value: true })
+      return pos + 1
+    })
+    return this as any
+  }
 
-export function group(kls: any) {
-  return function(target: any, name: string) {
-    add_handler(target, function group(inst, args, pos) {
-      let subres = new kls()
-      let res = _parse_args(subres, args, pos)
-      inst[name].push(subres)
-      subres.post?.()
+  sub<K extends string, V>(key: K, kls: OptionParser<V>): OptionParser<T & {[key in K]: V[]}> {
+    this.builders.push((i: any) => i[key] = [])
+    this.handlers.push(function group(inst: any, args, pos) {
+      inst[key] = []
+      let subres = kls.prebuild()
+      let res = kls.doParse(subres, args, pos)
+      inst[key].push(subres)
       return res
     })
+    return this as any
   }
-}
 
-function _parse_args(res: any, args: string[], pos: number): number {
-  let l = args.length
-  scanargs: while (pos < l) {
-    let handler = res
-    let handlers = handler[handlers_sym]
-    // console.log(handlers)
-    for (let h of handlers) {
-      let res = h(handler, args, pos)
-      if (typeof res === 'number' && res > pos) {
-        pos = res
-        continue scanargs
+  _post?: (t: T) => any
+  post<U>(fn: (t: T) => U): U extends void | Promise<void> ? OptionParser<T> : OptionParser<U> {
+    this._post = fn
+    return this as any
+  }
+
+  private doParse(inst: T, args: string[], pos: number) {
+    let l = args.length
+    scanargs: while (pos < l) {
+      for (let h of this.handlers) {
+        let res = h(inst, args, pos)
+        if (typeof res === 'number' && res > pos) {
+          pos = res
+          continue scanargs
+        }
       }
+      break
+    }
+    return pos
+  }
+
+  parse(args: string[] = process.argv.slice(2)): T {
+    let res = this.prebuild()
+    let pos = this.doParse(res, args, 0)
+
+    if (pos !== args.length) {
+      throw new Error(`leftovers: ${args.slice(pos).join(' ')}`)
     }
 
-    break
+    return this._post?.(res) ?? res
   }
-  return pos
 }
 
-export function parse_args<T>(kls: new () => T, args: string[] = process.argv.slice(2)) {
-  let res = new kls()
-  let pos = _parse_args(res, args, 0)
-  if (pos !== args.length) throw new Error(`leftovers: ${args.slice(pos).join(' ')}`)
-  ; (res as any).post?.()
-  return res
-}
+export function optparser() { return new OptionParser() }

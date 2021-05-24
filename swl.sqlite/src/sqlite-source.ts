@@ -1,30 +1,27 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { group, emit, util, flag, arg, parse_args, param } from 'swl'
+import { emit, util, optparser } from 'swl'
 import * as DB from 'better-sqlite3'
 
 import { uncoerce } from './common'
 
-export class SqliteSourceCollectionOptions {
-  @arg name: string = ''
-  @flag('u', {long: 'uncoerce'}) uncoerce: boolean = false
-  @param('q', {long: 'query'}) query?: string
-}
+let src_parser = optparser()
+  .arg('name')
+  .flag('uncoerce', {short: 'u', long: 'uncoerce'})
+  .param('query', {short: 'q', long: 'query'})
 
-export class SqliteSourceOptions {
-  @arg file: string = ''
-  @flag('u', {long: 'uncoerce'}) uncoerce: boolean = false
-  @group(SqliteSourceCollectionOptions) collections: SqliteSourceCollectionOptions[] = []
-
-  post() {
-    if (this.uncoerce) {
-      for (let c of this.collections) c.uncoerce = true
+let opt_parser = optparser()
+  .arg('file')
+  .flag('uncoerce', {short: 'u', long: 'uncoerce'})
+  .sub('collections', src_parser)
+  .post(opts => {
+    if (!opts.file) throw new Error('sqlite source expects a file name')
+    if (opts.uncoerce) {
+      for (let c of opts.collections) c.uncoerce = true
     }
-    if (!this.file) throw new Error('sqlite source expects a file name')
-  }
-}
+  })
 
-let opts = parse_args(SqliteSourceOptions)
+let opts = opt_parser.parse()
 
 util.source(() => {
   let db = new DB(opts.file, {readonly: true, fileMustExist: true})
@@ -37,7 +34,7 @@ util.source(() => {
       .pluck()
 
     sources = st.all().map((name: string) => {
-      let res = new SqliteSourceCollectionOptions()
+      let res = src_parser.prebuild()
       if (opts.uncoerce) res.uncoerce = true
       res.name = name
       return res
