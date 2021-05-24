@@ -25,15 +25,8 @@ export namespace emit {
     let buf = v8.serialize(packet)
     header[4] = type
     len_buf[0] = buf.length
-    // let buf2 = new Uint8Array(5 + buf.length)
-    // buf2.set(header, 0)
-    // buf2.set(buf, 5)
-    // fs.writeFileSync(1, buf2)
     fs.writeFileSync(1, header)
     fs.writeFileSync(1, buf)
-    // fs.fsyncSync(1)
-    // process.stdout.write(header)
-    // process.stdout.write(buf)
   }
 
   export function data(data: Data) {
@@ -127,7 +120,7 @@ export function packet_reader() {
 export namespace sink {
 
   export interface CollectionHandler {
-    start(coll: Collection, data: Data): Promise<void> | void
+    // start(coll: Collection, data: Data): Promise<void> | void
     data(data: Data): Promise<void> | void
     end(): Promise<void> | void
   }
@@ -136,21 +129,22 @@ export namespace sink {
     /**
      * Called before collection start
      */
-    init(): Promise<void> | void
-    collection(col: Collection): Promise<CollectionHandler> | CollectionHandler
+    collection(col: Collection, data: Data): Promise<CollectionHandler> | CollectionHandler
     message?(message: Message): Promise<void> | void
     error?(error: ErrorChunk): Promise<void> | void
     end(): Promise<void> | void
+    finally?(): Promise<void> | void
+    passthrough?: boolean
   }
 
-  export async function registerHandler(handler: Handler) {
+  export async function registerHandler(_handler: Handler | (() => Promise<Handler> | Handler)) {
 
+    let handler = typeof _handler === 'function' ? await _handler() : _handler
     let reader = packet_reader()
+    let passthrough = handler.passthrough
     ///
     var collection_handler: CollectionHandler | null = null
     var collection: Collection | null = null
-
-    await handler.init()
 
     let read: null | ReturnType<ReturnType<typeof packet_reader>['next']>
 
@@ -158,17 +152,20 @@ export namespace sink {
       let type = read.type
       let chunk: Chunk = v8.deserialize(read.view)
 
+      if (passthrough) {
+        emit.chunk(type, chunk)
+      }
+
       // Now that the next packet is read, dispatch it to the correct method
       if (chunk_is_collection(type, chunk)) {
         if (collection_handler) {
           await collection_handler.end()
         }
-        collection_handler = await handler.collection(chunk)
         collection = chunk
       } else if (chunk_is_data(type, chunk)) {
         let data = chunk
         if (collection) {
-          await collection_handler!.start(collection, data)
+          collection_handler = await handler.collection(collection, data)
           collection = null
         }
         await collection_handler!.data(chunk)

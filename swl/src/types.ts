@@ -23,7 +23,7 @@ export interface Message {
   type: string
 }
 
-export type Data = string | number | boolean | Date | null | Data[] | {[name: string]: Data}
+export type Data = any // string | number | boolean | Date | null | Data[] | {[name: string]: Data}
 
 export type Chunk =
   | Data
