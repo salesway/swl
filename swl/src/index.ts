@@ -2,8 +2,11 @@ import * as v8 from 'v8'
 import * as fs from 'fs'
 import * as tty from 'tty'
 import * as path from 'path'
-import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error } from './types'
 
+import 'reflect-metadata'
+// import {  } from 'reflect-metadata'
+
+import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error } from './types'
 import { debug, file, grey } from './debug'
 
 // import './out'
@@ -315,6 +318,9 @@ export function flag(short: string, opts: {long?: string} = {}) {
   short = '-' + short
   let long = opts?.long ? '--' + opts?.long : ''
   return function(target: any, name: string) {
+    if (Reflect.getMetadata('design:type', target, name) !== Boolean) {
+      throw new Error(`on property '${name}': flag only works on :boolean properties`)
+    }
     function flag(inst: any, args: string[], pos: number) {
       let arg = args[pos]
       if (arg === short || arg === long) {
@@ -330,6 +336,9 @@ export function flag(short: string, opts: {long?: string} = {}) {
 
 export function arg(target: any, name: string) {
   const found = Symbol('found')
+  if (Reflect.getMetadata('design:type', target, name) !== String)
+    throw new Error(`arg on '${name}' expects a string`)
+
   add_handler(target, function arg(inst, args, pos) {
     if (inst[found]) return undefined
     let arg = args[pos]

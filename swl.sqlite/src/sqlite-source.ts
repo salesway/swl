@@ -10,19 +10,20 @@ const re_boolean = /^true|false$/i
 
 export class SqliteSourceCollectionOptions {
   @arg name: string = ''
-  @flag('u', {long: 'uncoerce'}) uncoerce = false
+  @flag('u', {long: 'uncoerce'}) uncoerce: boolean = false
   @param('q', {long: 'query'}) query?: string
 }
 
 export class SqliteSourceOptions {
   @arg file: string = ''
-  @flag('u', {long: 'uncoerce'}) uncoerce = false
+  @flag('u', {long: 'uncoerce'}) uncoerce: boolean = false
   @group(SqliteSourceCollectionOptions) collections: SqliteSourceCollectionOptions[] = []
 
   post() {
     if (this.uncoerce) {
       for (let c of this.collections) c.uncoerce = true
     }
+    if (!this.file) throw new Error('sqlite source expects a file name')
   }
 }
 
