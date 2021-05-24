@@ -4,7 +4,8 @@
   "description": ".",
   "main": "index.js",
   "bin": {
-    "swl-sqlite-src": "./lib/source"
+    "swl-sqlite-src": "./lib/sqlite-source.js",
+    "swl-sqlite-sink": "./lib/sqlite-sink.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
