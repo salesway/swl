@@ -1,0 +1,21 @@
+{
+  "name": "swl",
+  "version": "0.1.0",
+  "description": "",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/chalk": "^2.2.0",
+    "@types/get-port": "^4.2.0",
+    "chalk": "^4.1.1",
+    "get-port": "^5.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^13.9.5"
+  }
+}

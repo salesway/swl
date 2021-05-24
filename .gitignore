@@ -1,0 +1,8 @@
+node_modules
+deps
+lib
+*.d.ts
+*.js
+*.js.map
+yarn.lock
+*.log
