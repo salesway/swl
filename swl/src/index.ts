@@ -146,6 +146,7 @@ export namespace sink {
     var collection_handler: CollectionHandler | null = null
     var collection: Collection | null = null
 
+    if (tty.isatty(0)) throw new Error(`a sink needs an input`)
     let read: null | ReturnType<ReturnType<typeof packet_reader>['next']>
 
     while ((read = reader.next())) {
