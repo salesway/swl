@@ -55,13 +55,16 @@ export namespace emit {
       flush()
   })
 
-  function write_chunk(type: ChunkType, packet: Chunk) {
-    let buf = v8.serialize(packet)
+  export function write_packet(type: ChunkType, buf: Uint8Array) {
     header[4] = type
     len_buf[0] = buf.length
 
     write(header)
     write(buf)
+  }
+
+  export function write_chunk(type: ChunkType, packet: Chunk) {
+    write_packet(type, v8.serialize(packet))
   }
 
   export const chunk = tty.isatty(1) ? debug : write_chunk
@@ -171,8 +174,7 @@ export namespace sink {
 
     let handler = typeof _handler === "function" ? await _handler() : _handler
     let reader = packet_reader()
-    let passthrough = handler.passthrough
-    ///
+
     var collection_handler: CollectionHandler | null = null
     var collection: Collection | null = null
 
@@ -181,11 +183,12 @@ export namespace sink {
 
     while ((read = reader.next())) {
       let type = read.type
-      let chunk: Chunk = v8.deserialize(read.view)
 
-      if (passthrough) {
-        emit.chunk(type, chunk)
+      if (handler.passthrough) {
+        emit.write_packet(type, read.view)
       }
+
+      let chunk: Chunk = v8.deserialize(read.view)
 
       // Now that the next packet is read, dispatch it to the correct method
       if (chunk_is_collection(type, chunk)) {
