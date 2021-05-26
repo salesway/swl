@@ -151,76 +151,72 @@ export function packet_reader() {
 }
 
 
-export namespace sink {
+export interface CollectionHandler {
+  // start(coll: Collection, data: Data): Promise<void> | void
+  data(data: Data): Promise<void> | void
+  end(): Promise<void> | void
+}
 
-  export interface CollectionHandler {
-    // start(coll: Collection, data: Data): Promise<void> | void
-    data(data: Data): Promise<void> | void
-    end(): Promise<void> | void
-  }
+export interface Handler {
+  /**
+   * Called before collection start
+   */
+  collection(col: Collection, data: Data): Promise<CollectionHandler> | CollectionHandler
+  message?(message: Message): Promise<void> | void
+  error?(error: ErrorChunk): Promise<void> | void
+  end(): Promise<void> | void
+  finally?(): Promise<void> | void
+  passthrough?: boolean
+}
 
-  export interface Handler {
-    /**
-     * Called before collection start
-     */
-    collection(col: Collection, data: Data): Promise<CollectionHandler> | CollectionHandler
-    message?(message: Message): Promise<void> | void
-    error?(error: ErrorChunk): Promise<void> | void
-    end(): Promise<void> | void
-    finally?(): Promise<void> | void
-    passthrough?: boolean
-  }
+export async function sink(_handler: Handler | (() => Promise<Handler> | Handler)) {
 
-  export async function registerHandler(_handler: Handler | (() => Promise<Handler> | Handler)) {
+  let handler = typeof _handler === "function" ? await _handler() : _handler
+  let reader = packet_reader()
 
-    let handler = typeof _handler === "function" ? await _handler() : _handler
-    let reader = packet_reader()
+  var collection_handler: CollectionHandler | null = null
+  var collection: Collection | null = null
 
-    var collection_handler: CollectionHandler | null = null
-    var collection: Collection | null = null
+  if (tty.isatty(0)) throw new Error(`a sink needs an input`)
+  let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
 
-    if (tty.isatty(0)) throw new Error(`a sink needs an input`)
-    let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
+  while ((read = reader.next())) {
+    let type = read.type
 
-    while ((read = reader.next())) {
-      let type = read.type
-
-      if (handler.passthrough) {
-        emit.write_packet(type, read.view)
-      }
-
-      let chunk: Chunk = v8.deserialize(read.view)
-
-      // Now that the next packet is read, dispatch it to the correct method
-      if (chunk_is_collection(type, chunk)) {
-        if (collection_handler) {
-          await collection_handler.end()
-        }
-        collection = chunk
-      } else if (chunk_is_data(type, chunk)) {
-        let data = chunk
-        if (collection) {
-          collection_handler = await handler.collection(collection, data)
-          collection = null
-        }
-        await collection_handler!.data(chunk)
-      } else if (chunk_is_message(type, chunk)) {
-        await handler.message?.(chunk)
-      } else if (chunk_is_error(type, chunk)) {
-        // error will kill the current stream
-        // and stop any processing
-        if (handler.error) {
-          await handler.error(chunk)
-        }
-        report_error(chunk)
-        return
-      }
-
-      // console.log(packet)
+    if (handler.passthrough) {
+      emit.write_packet(type, read.view)
     }
-    await handler.end()
-  }
 
+    let chunk: Chunk = v8.deserialize(read.view)
+
+    // Now that the next packet is read, dispatch it to the correct method
+    if (chunk_is_collection(type, chunk)) {
+      if (collection_handler) {
+        await collection_handler.end()
+      }
+      collection = chunk
+    } else if (chunk_is_data(type, chunk)) {
+      let data = chunk
+      if (collection) {
+        collection_handler = await handler.collection(collection, data)
+        collection = null
+      }
+      await collection_handler!.data(chunk)
+    } else if (chunk_is_message(type, chunk)) {
+      await handler.message?.(chunk)
+    } else if (chunk_is_error(type, chunk)) {
+      // error will kill the current stream
+      // and stop any processing
+      if (handler.error) {
+        await handler.error(chunk)
+      }
+      report_error(chunk)
+      return
+    }
+
+    // console.log(packet)
+  }
+  await handler.end()
 }
 
 

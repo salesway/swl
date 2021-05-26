@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log, sink, optparser } from "swl"
+import { log, sink, optparser, CollectionHandler, Handler } from "swl"
 import { coerce } from "./common"
 import * as DB from "better-sqlite3"
 
@@ -36,7 +36,7 @@ function exec(stmt: string) {
   db.exec(stmt)
 }
 
-function collection_handler(name: string, start: any): sink.CollectionHandler {
+function collection_handler(name: string, start: any): CollectionHandler {
   let table = name
   var columns = Object.keys(start)
 
@@ -93,7 +93,7 @@ let db = new DB(opts.file, { fileMustExist: false })
 // db.pragma("synchronous = 0")
 // db.pragma("locking_mode = EXCLUSIVE")
 
-sink.registerHandler((): sink.Handler => {
+sink((): Handler => {
   db.exec("BEGIN")
   return {
     passthrough: opts.passthrough,
