@@ -1,21 +1,21 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { emit, util, optparser } from 'swl'
-import * as DB from 'better-sqlite3'
+import { emit, util, optparser } from "swl"
+import * as DB from "better-sqlite3"
 
-import { uncoerce } from './common'
+import { uncoerce } from "./common"
 
 let src_parser = optparser()
-  .arg('name')
-  .flag('uncoerce', {short: 'u', long: 'uncoerce'})
-  .param('query', {short: 'q', long: 'query'})
+  .arg("name")
+  .flag("uncoerce", {short: "u", long: "uncoerce"})
+  .option("query", {short: "q", long: "query"})
 
 let opt_parser = optparser()
-  .arg('file')
-  .flag('uncoerce', {short: 'u', long: 'uncoerce'})
-  .sub('collections', src_parser)
+  .arg("file")
+  .flag("uncoerce", {short: "u", long: "uncoerce"})
+  .sub("collections", src_parser)
   .post(opts => {
-    if (!opts.file) throw new Error('sqlite source expects a file name')
+    if (!opts.file) throw new Error("sqlite source expects a file name")
     if (opts.uncoerce) {
       for (let c of opts.collections) c.uncoerce = true
     }

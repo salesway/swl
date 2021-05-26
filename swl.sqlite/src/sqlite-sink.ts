@@ -1,24 +1,23 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log, sink, optparser } from 'swl'
-import { coerce } from './common'
-import * as DB from 'better-sqlite3'
+import { log, sink, optparser } from "swl"
+import { coerce } from "./common"
+import * as DB from "better-sqlite3"
 
 let col_parser = optparser()
-  .arg('name')
-  .flag('truncate', {short: 't', long: 'truncate'})
-  .flag('drop', {short: 'd', long: 'drop'})
-  .flag('upsert', {short: 'u', long: 'upsert'})
+  .arg("name")
+  .flag("truncate", {short: "t", long: "truncate"})
+  .flag("drop", {short: "d", long: "drop"})
+  .flag("upsert", {short: "u", long: "upsert"})
 
 let opts_parser = optparser()
-  .arg('file')
-  .flag('truncate', {short: 't', long: 'truncate'})
-  .flag('drop', {short: 'd', long: 'drop'})
-  .flag('upsert', {short: 'u', long: 'upsert'})
-  // .param('a', {long: 'pragma'}) pragma: string[] = []
-  .flag('passthrough', {short: 'p', long: 'passthrough'})
-  .flag('verbose', {short: 'v', long: 'verbose'})
-  .sub('collections', col_parser)
+  .arg("file")
+  .flag("truncate", {short: "t", long: "truncate"})
+  .flag("drop", {short: "d", long: "drop"})
+  .flag("upsert", {short: "u", long: "upsert"})
+  .flag("passthrough", {short: "p", long: "passthrough"})
+  .flag("verbose", {short: "v", long: "verbose"})
+  .sub("collections", col_parser)
   .post(opts => {
     for (let c of opts.collections) {
       if (opts.truncate) c.truncate = true
@@ -26,7 +25,7 @@ let opts_parser = optparser()
       if (opts.upsert) c.upsert = true
     }
 
-    if (!opts.file) throw new Error('sqlite source expects a file name')
+    if (!opts.file) throw new Error("sqlite source expects a file name")
   })
 
 let opts = opts_parser.parse()
@@ -41,9 +40,9 @@ function collection_handler(name: string, start: any): sink.CollectionHandler {
   let table = name
   var columns = Object.keys(start)
 
-  var types = columns.map(c => typeof start[c] === 'number' ? 'int'
-  : start[c] instanceof Buffer ? 'blob'
-  : 'text')
+  var types = columns.map(c => typeof start[c] === "number" ? "int"
+  : start[c] instanceof Buffer ? "blob"
+  : "text")
 
   if (opts.drop) {
     exec(`DROP TABLE IF EXISTS "${table}"`)
@@ -52,7 +51,7 @@ function collection_handler(name: string, start: any): sink.CollectionHandler {
   // Create if not exists ?
   // Temporary ?
   exec(`CREATE TABLE IF NOT EXISTS "${table}" (
-    ${columns.map((c, i) => `"${c}" ${types[i]}`).join(', ')}
+    ${columns.map((c, i) => `"${c}" ${types[i]}`).join(", ")}
   )`)
 
   if (opts.truncate) {
@@ -61,15 +60,15 @@ function collection_handler(name: string, start: any): sink.CollectionHandler {
 
   let stmt!: DB.Statement
   if (!opts.upsert) {
-    const sql = `INSERT INTO "${table}" (${columns.map(c => `"${c}"`).join(', ')})
-    values (${columns.map(c => '?').join(', ')})`
+    const sql = `INSERT INTO "${table}" (${columns.map(c => `"${c}"`).join(", ")})
+    values (${columns.map(c => "?").join(", ")})`
     // console.log(sql)
     stmt = db.prepare(sql)
   } else if (opts.upsert) {
     // Should I do some sub-query thing with coalesce ?
     // I would need some kind of primary key...
-    stmt = db.prepare(`INSERT OR REPLACE INTO "${table}" (${columns.map(c => `"${c}"`).join(', ')})
-      values (${columns.map(c => '?').join(', ')})`)
+    stmt = db.prepare(`INSERT OR REPLACE INTO "${table}" (${columns.map(c => `"${c}"`).join(", ")})
+      values (${columns.map(c => "?").join(", ")})`)
   }
 
   return {
@@ -87,25 +86,25 @@ let db = new DB(opts.file, { fileMustExist: false })
 
 // }
 
-// let journal_mode = db.pragma('journal_mode')
-// let synchronous = db.pragma('synchronous')
-// let locking_mode = db.pragma('locking_mode')
-// db.pragma('journal_mode = off')
-// db.pragma('synchronous = 0')
-// db.pragma('locking_mode = EXCLUSIVE')
+// let journal_mode = db.pragma("journal_mode")
+// let synchronous = db.pragma("synchronous")
+// let locking_mode = db.pragma("locking_mode")
+// db.pragma("journal_mode = off")
+// db.pragma("synchronous = 0")
+// db.pragma("locking_mode = EXCLUSIVE")
 
 sink.registerHandler((): sink.Handler => {
-  db.exec('BEGIN')
+  db.exec("BEGIN")
   return {
     passthrough: opts.passthrough,
     collection(col, start) {
       return collection_handler(col.name, start)
     },
     error() {
-      db.exec('ROLLBACK')
+      db.exec("ROLLBACK")
     },
     end() {
-      db.exec('COMMIT')
+      db.exec("COMMIT")
       db.close()
     },
   }
