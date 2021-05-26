@@ -67,7 +67,6 @@ export function packet_reader() {
   let bufsize = 16 * 1024 // 16 kb by default, can get higher, but it should handle most cases...
   let buf = new Uint8Array(bufsize)
   let rd = -1
-  let total = 0
 
   function read_buffer(buffer: Uint8Array, l: number): number {
     let length = l
@@ -89,7 +88,6 @@ export function packet_reader() {
     next() {
       if (rd === 0) return null
       rd = read_buffer(header, 5)
-      total += rd
       if (rd === 0) return null
       let type = header[4]
       let length = lenreader[0]
@@ -103,7 +101,6 @@ export function packet_reader() {
       // rd = fs.readSync(fd, buf, 0, length, null)
       // log('read', length, rd, total)
       rd = read_buffer(buf, length)
-      total += rd
       if (rd !== length) {
         // THIS IS AN ERROR !!!
         throw new Error(`stdin returned EOF, yet there is data expected (expected ${length})`)

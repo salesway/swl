@@ -8,6 +8,7 @@ let col_parser = optparser()
   .arg('name')
   .flag('truncate', {short: 't', long: 'truncate'})
   .flag('drop', {short: 'd', long: 'drop'})
+  .flag('upsert', {short: 'u', long: 'upsert'})
 
 let opts_parser = optparser()
   .arg('file')
@@ -22,6 +23,7 @@ let opts_parser = optparser()
     for (let c of opts.collections) {
       if (opts.truncate) c.truncate = true
       if (opts.drop) c.drop = true
+      if (opts.upsert) c.upsert = true
     }
 
     if (!opts.file) throw new Error('sqlite source expects a file name')
