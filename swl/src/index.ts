@@ -21,13 +21,53 @@ export namespace emit {
   const header = new Uint8Array(5)
   const len_buf = new Uint32Array(header.buffer, 0, 1)
 
-  export const chunk = tty.isatty(1) ? debug : function (type: ChunkType, packet: Chunk) {
+  let L = 4 * 1024
+  let offset = 0
+  const output_buf = new Uint8Array(L)
+
+  // Flush to stdout
+  function flush() {
+    let view = new Uint8Array(output_buf.buffer, 0, offset)
+    fs.writeFileSync(1, view)
+    offset = 0
+  }
+
+  /**
+   * Write to stdout, buffering manually since writeFileSync will not do it.
+   */
+  function write(buf: Uint8Array) {
+    let len = buf.buffer.byteLength
+    let self_offset = 0
+
+    // while the length we have to write is bigger than the available space in the output buffer,
+    // buffer stuff out
+    while (len > 0) {
+      let amount = Math.min(len, L - offset)
+      let view = new Uint8Array(buf.buffer, self_offset, amount)
+      output_buf.set(view, offset)
+      self_offset += amount
+      offset += amount
+      len -= amount
+      if (offset >= L) flush()
+    }
+  }
+
+  // flush the buffer
+  process.on('beforeExit', _ => {
+    if (offset > 0)
+      flush()
+  })
+
+  function write_chunk(type: ChunkType, packet: Chunk) {
     let buf = v8.serialize(packet)
     header[4] = type
     len_buf[0] = buf.length
-    fs.writeFileSync(1, header)
-    fs.writeFileSync(1, buf)
+
+    write(header)
+    write(buf)
   }
+
+  export const chunk = tty.isatty(1) ? debug : write_chunk
 
   export function data(data: Data) {
     chunk(ChunkType.Data, data)
