@@ -4,12 +4,11 @@ import * as tty from "tty"
 import * as path from "path"
 
 import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error } from "./types"
-import { debug, file, grey } from "./debug"
+import { debug, file } from "./debug"
 
 
 export function log(...a: any[]) {
-  let w = grey(a.map(a => a.toString()).join(" "))
-  console.error(`${file(util.self_name)}:`, w)
+  console.error(`${file(self_name)}:`, ...a)
 }
 
 
@@ -80,7 +79,7 @@ export namespace emit {
   export function error(err: ErrorChunk) {
     let stack = {stack: ""}
     Error.captureStackTrace(stack, error)
-    err.origin = util.self_name
+    err.origin = self_name
     err.stack = stack.stack
     chunk(ChunkType.Error, err)
   }
@@ -88,7 +87,7 @@ export namespace emit {
 
 
 export function report_error(err: ErrorChunk) {
-  if (process.stdout.isTTY) {
+  if (tty.isatty(1)) {
     log("error: ", err)
   } else {
     emit.error(err)
@@ -112,7 +111,7 @@ export function packet_reader() {
       // log("!!", offset, length, res, l)
       if (res === 0) {
         if (offset === 0) return 0
-        throw new Error(`unexpected EOF (${l}, ${length}, ${offset})`) // EOF !
+        throw new Error(`unexpected EOF (want: ${l} but had 0, try: ${length}, offset: ${offset})`) // EOF !
       }
       offset += res
       length -= res
@@ -223,99 +222,98 @@ export namespace sink {
 }
 
 
-export namespace util {
-
-  // The current executable name, used in target: when passing commands and messages.
-  export const self_name: string = path.basename(process.argv[1])
+// The current executable name, used in target: when passing commands and messages.
+export const self_name: string = path.basename(process.argv[1])
 
 
-  /**
-   * Try to find a forward pattern in an URI and create the ssh tunnel if
-   * found.
-   *
-   * @param uri: the uri to search the pattern in
-   * @returns a modified URI with the forwarded port on localhost
-   */
-  export async function uri_maybe_open_tunnel(uri: string): Promise<string> {
-    const gp = (require("get-port") as typeof import("get-port"))
-    const tunnel = require("tunnel-ssh")
-    const conf = require("ssh-config")
-    const promisify = (require("util") as typeof import("util")).promisify
+/**
+ * Try to find a forward pattern in an URI and create the ssh tunnel if
+ * found.
+ *
+ * @param uri: the uri to search the pattern in
+ * @returns a modified URI with the forwarded port on localhost
+ */
+export async function uri_maybe_open_tunnel(uri: string) {
+  const gp = (require("get-port") as typeof import("get-port"))
+  const tunnel = require("tunnel-ssh") as typeof import("tunnel-ssh")
+  const conf = require("ssh-config")
+  const promisify = (require("util") as typeof import("util")).promisify
 
-    var local_port = await gp()
-    var re_tunnel = /([^@:\/]+):(\d+)@@(?:([^@:]+)(?::([^@]+))?@)?([^:/]+)(?::([^\/]+))?/
+  var local_port = await gp()
+  var re_tunnel = /([^@:\/]+):(\d+)@@(?:([^@:]+)(?::([^@]+))?@)?([^:/]+)(?::([^\/]+))?/
 
-    var match = re_tunnel.exec(uri)
+  var match = re_tunnel.exec(uri)
 
-    // If there is no forward to create, just return the uri as-is
-    if (!match) return uri
+  // If there is no forward to create, just return the uri as-is
+  if (!match) return { uri }
 
-    const [remote_host, remote_port, user, password, host, port] = match.slice(1)
+  const [remote_host, remote_port, user, password, host, port] = match.slice(1)
 
-    var config: any = {
-      host, port: port,
-      dstHost: remote_host, dstPort: remote_port,
-      localPort: local_port, localHost: "127.0.0.1"
-    }
-
-    if (user) config.username = user
-    if (password) config.password = password
-
-    try {
-      var _conf = conf.parse(fs.readFileSync(`${process.env.HOME}/.ssh/config`, "utf-8"))
-      const comp = _conf.compute(host)
-      if (comp.HostName) config.host = comp.HostName
-      if (comp.User && !config.username) config.username = comp.User
-      if (comp.Password && !config.password) config.password = comp.Password
-      if (comp.Port && !config.port) config.port = comp.Port
-
-    } catch (e) {
-      // console.log(e)
-    }
-
-    if (!config.port) config.port = 22
-
-    // Create the tunnel
-    await promisify(tunnel)(config)
-    return uri.replace(match[0], `127.0.0.1:${local_port}`)
+  var config: any = {
+    host, port: port,
+    dstHost: remote_host, dstPort: remote_port,
+    localPort: local_port, localHost: "127.0.0.1"
   }
 
-  export function emit_upstream(): boolean {
-    // let fd = fs.openSync("/dev/stdin", "rs")
-    if (tty.isatty(0)) {
-      return true
-    }
-    // fs.closeSync(fd)
-    // let fd = fs.openSync("/dev/stdout", "as+")
-    // let out = process.stdout
-    let should_forward = !tty.isatty(1)
-    let reader = packet_reader()
-    let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
-    while ((read = reader.next())) {
-      let type = read.type
-      let view = read.view
+  if (user) config.username = user
+  if (password) config.password = password
 
-      if (should_forward) {
-        fs.writeSync(1, reader.header)
-        fs.writeSync(1, view)
-      }
+  try {
+    var _conf = conf.parse(fs.readFileSync(`${process.env.HOME}/.ssh/config`, "utf-8"))
+    const comp = _conf.compute(host)
+    if (comp.HostName) config.host = comp.HostName
+    if (comp.User && !config.username) config.username = comp.User
+    if (comp.Password && !config.password) config.password = comp.Password
+    if (comp.Port && !config.port) config.port = comp.Port
 
-      if (type === ChunkType.Error) {
-        return false
-      }
-    }
+  } catch (e) {
+    // console.log(e)
+  }
+
+  if (!config.port) config.port = 22
+
+  // Create the tunnel
+  let res = await promisify(tunnel)(config)
+  return { uri: uri.replace(match[0], `127.0.0.1:${local_port}`), tunnel: res }
+}
+
+
+export function emit_upstream(): boolean {
+  // let fd = fs.openSync("/dev/stdin", "rs")
+  if (tty.isatty(0)) {
     return true
   }
+  // fs.closeSync(fd)
+  // let fd = fs.openSync("/dev/stdout", "as+")
+  // let out = process.stdout
+  let should_forward = !tty.isatty(1)
+  let reader = packet_reader()
+  let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
+  while ((read = reader.next())) {
+    let type = read.type
+    let view = read.view
 
-  /**
-   * A very simple function to have the source forward its input and then run the source itself.
-   *
-   * @param fn The function to execute once stdin has been forwarded
-   */
-  export function source<T>(fn: () => T) {
-    if (emit_upstream())
-      return fn()
+    if (should_forward) {
+      fs.writeSync(1, reader.header)
+      fs.writeSync(1, view)
+    }
+
+    if (type === ChunkType.Error) {
+      return false
+    }
   }
+  return true
+}
+
+
+/**
+ * A very simple function to have the source forward its input and then run the source itself.
+ *
+ * @param fn The function to execute once stdin has been forwarded
+ */
+export function source<T>(fn: () => T) {
+  if (emit_upstream())
+    return fn()
 }
 
 

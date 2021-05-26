@@ -14,9 +14,12 @@
     "@types/get-port": "^4.2.0",
     "chalk": "^4.1.1",
     "get-port": "^5.1.1",
-    "reflect-metadata": "^0.1.13"
+    "reflect-metadata": "^0.1.13",
+    "ssh-config": "^4.0.6",
+    "tunnel-ssh": "^4.1.4"
   },
   "devDependencies": {
-    "@types/node": "^13.9.5"
+    "@types/node": "^13.9.5",
+    "@types/tunnel-ssh": "^4.1.0"
   }
 }

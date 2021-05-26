@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { emit, util, optparser } from "swl"
+import { emit, source, optparser } from "swl"
 import * as DB from "better-sqlite3"
 
 import { uncoerce } from "./common"
@@ -23,7 +23,7 @@ let opt_parser = optparser()
 
 let opts = opt_parser.parse()
 
-util.source(() => {
+source(() => {
   let db = new DB(opts.file, {readonly: true, fileMustExist: true})
   var sources = opts.collections
 
