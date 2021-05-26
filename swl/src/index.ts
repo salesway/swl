@@ -12,6 +12,8 @@ export function log(...a: any[]) {
 }
 
 
+const out = fs.openSync("/dev/stdout", "w")
+
 export namespace emit {
 
   const header = new Uint8Array(5)
@@ -24,7 +26,7 @@ export namespace emit {
   // Flush to stdout
   function flush() {
     let view = new Uint8Array(output_buf.buffer, 0, offset)
-    fs.writeFileSync(1, view)
+    fs.writeFileSync(out, view)
     offset = 0
   }
 
@@ -66,7 +68,7 @@ export namespace emit {
     write_packet(type, v8.serialize(packet))
   }
 
-  export const chunk = tty.isatty(1) ? debug : write_chunk
+  export const chunk = tty.isatty(out) ? debug : write_chunk
 
   export function data(data: Data) {
     chunk(ChunkType.Data, data)
@@ -87,7 +89,7 @@ export namespace emit {
 
 
 export function report_error(err: ErrorChunk) {
-  if (tty.isatty(1)) {
+  if (tty.isatty(out)) {
     log("error: ", err)
   } else {
     emit.error(err)
@@ -286,7 +288,7 @@ export function emit_upstream(): boolean {
   // fs.closeSync(fd)
   // let fd = fs.openSync("/dev/stdout", "as+")
   // let out = process.stdout
-  let should_forward = !tty.isatty(1)
+  let should_forward = !tty.isatty(out)
   let reader = packet_reader()
   let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
   while ((read = reader.next())) {
@@ -321,3 +323,7 @@ export function source<T>(fn: () => T) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export { optparser, FlagOpts, OptionParser } from "./optparse"
+
+process.on("uncaughtException", err => {
+  log(err)
+})
