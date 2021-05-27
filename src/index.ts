@@ -320,6 +320,9 @@ export function emit_upstream(): boolean {
     if (should_forward) {
       fs.writeSync(1, reader.header)
       fs.writeSync(1, view)
+    } else {
+      let obj = v8.deserialize(view)
+      debug(type, obj)
     }
 
     if (type === ChunkType.Error) {
