@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { emit, source, optparser } from "../index"
+import { log1, emit, source, optparser, default_opts, file, } from "../index"
 import * as DB from "better-sqlite3"
 
 let src_parser = optparser()
@@ -9,6 +9,7 @@ let src_parser = optparser()
 
 let opt_parser = optparser()
   .arg("file")
+  .include(default_opts)
   .sub("collections", src_parser)
   .post(opts => {
     if (!opts.file) throw new Error("sqlite source expects a file name")
@@ -18,6 +19,7 @@ let opts = opt_parser.parse()
 
 source(() => {
   let db = new DB(opts.file, {readonly: true, fileMustExist: true})
+  log1("Opened file", file(opts.file))
   var sources = opts.collections
 
   if (sources.length === 0) {
@@ -41,7 +43,9 @@ source(() => {
     emit.collection(source.name)
     // this.info(`Started ${colname}`)
     var iterator = (stmt as any).iterate() as IterableIterator<any>
+    let count = 0
     for (var s of iterator) {
+      count++
       emit.data(s)
     }
   }

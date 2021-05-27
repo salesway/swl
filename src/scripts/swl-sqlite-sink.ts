@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log, sink, optparser, CollectionHandler, Handler } from "../index"
+import { log1, log3, sink, optparser, CollectionHandler, Handler, default_opts } from "../index"
 import * as DB from "better-sqlite3"
 import { coll } from "../debug"
 
@@ -12,11 +12,11 @@ let col_parser = optparser()
 
 let opts_parser = optparser()
   .arg("file")
+  .include(default_opts)
   .flag("truncate", {short: "t", long: "truncate"})
   .flag("drop", {short: "d", long: "drop"})
   .flag("upsert", {short: "u", long: "upsert"})
   .flag("passthrough", {short: "p", long: "passthrough"})
-  .flag("verbose", {short: "v", long: "verbose"})
   .sub("collections", col_parser)
   .post(opts => {
     for (let c of opts.collections) {
@@ -32,7 +32,7 @@ let opts = opts_parser.parse()
 
 
 function exec(stmt: string) {
-  log2(stmt)
+  log3(stmt)
   db.exec(stmt)
 }
 
@@ -98,7 +98,6 @@ sink((): Handler => {
   return {
     passthrough: !!opts.passthrough,
     collection(col, start) {
-      log1("Received collection", coll(col.name))
       return collection_handler(col.name, start)
     },
     error() {
@@ -113,11 +112,3 @@ sink((): Handler => {
   }
 
 })
-
-function log1(...a: any[]) {
-  if (opts.verbose >= 1) log(...a)
-}
-
-function log2(...a: any[]) {
-  if (opts.verbose >= 2) log(...a)
-}

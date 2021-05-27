@@ -4,7 +4,7 @@ import * as tty from "tty"
 import * as path from "path"
 
 import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error } from "./types"
-import { debug, file } from "./debug"
+import { coll, debug, file, num } from "./debug"
 
 export * from "./types"
 export * from "./debug"
@@ -81,11 +81,17 @@ export namespace emit {
 
   export const chunk = tty.isatty(out) ? debug : write_chunk
 
+  let _count = 0
+  let _current: string | null = null
   export function data(data: Data) {
+    _count++
     chunk(ChunkType.Data, data)
   }
 
   export function collection(name: string) {
+    if (_current != null) log2(coll(name), "emitted", num(_count), "lines")
+    _current = name
+    _count = 0
     chunk(ChunkType.Collection, { name })
   }
 
@@ -186,8 +192,10 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
   let handler = typeof _handler === "function" ? await _handler() : _handler
   let reader = packet_reader()
 
-  var collection_handler: CollectionHandler | null = null
-  var collection: Collection | null = null
+  let collection_handler: CollectionHandler | null = null
+  let collection_name = ""
+  let collection: Collection | null = null
+  let _count = 0
 
   if (tty.isatty(0)) throw new Error(`a sink needs an input`)
   let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
@@ -211,11 +219,12 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
     // Now that the next packet is read, dispatch it to the correct method
     if (chunk_is_collection(type, chunk)) {
       if (collection_handler) {
-        await collection_handler.end()
-        collection_handler = null
+        await end_collection()
       }
       collection = chunk
+      collection_name = chunk.name
     } else if (chunk_is_data(type, chunk)) {
+      _count++
       let data = chunk
       if (collection) {
         collection_handler = await handler.collection(collection, data)
@@ -238,8 +247,15 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
     // console.log(packet)
   }
 
-  if (collection_handler) {
+  await end_collection()
+
+  async function end_collection() {
+    if (!collection_handler) return
     await collection_handler.end()
+    collection_handler = null
+    log2(coll(collection_name), "received", num(_count), "lines")
+    collection = null
+    _count = 0
   }
 
   await handler.end()
@@ -248,7 +264,7 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
 
 
 // The current executable name, used in target: when passing commands and messages.
-export const self_name: string = path.basename(process.argv[1])
+export const self_name: string = path.basename(process.argv[1]).replace(".js", "")
 
 
 /**
@@ -347,6 +363,7 @@ export function source<T>(fn: () => T) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export { optparser, FlagOpts, OptionParser } from "./optparse"
+import { optparser } from "./optparse"
 
 process.on("uncaughtException", err => {
   emit.error({message: err.message})
@@ -375,3 +392,15 @@ export class Lock<T> {
     this._reject(e)
   }
 }
+
+export let log1 = (...a: any[]) => { }
+export let log2 = (...a: any[]) => { }
+export let log3 = (...a: any[]) => { }
+
+export const default_opts = optparser()
+  .flag("verbose", {short: "v", long: "verbose", post: inst => {
+    let verb = inst["verbose"]
+    if (verb >= 1) log1 = log
+    if (verb >= 2) log2 = log
+    if (verb >= 3) log3 = log
+  }})

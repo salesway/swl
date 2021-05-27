@@ -24,6 +24,7 @@ export interface FlagOpts<T> {
   help?: string
   default?: T
   repeating?: boolean
+  post?: (inst: any) => any
   transform?: (s: string) => T
 }
 
@@ -50,11 +51,13 @@ function is_simple_flag(item: string) {
 export class OptionParser<T = {}> {
   private handlers: ((inst: T, args: string[], pos: number) => number | undefined)[] = []
   private builders: ((inst: any) => void)[] = []
+  private post_fns: ((inst: any) => any)[] = []
 
   private clone<T>() {
     let n = new OptionParser<T>()
     n.builders = this.builders.slice()
     n.handlers = this.handlers.slice() as any
+    n.post_fns = this.post_fns.slice()
     return n
   }
 
@@ -68,6 +71,7 @@ export class OptionParser<T = {}> {
     let n = this.clone<T & U>()
     n.builders = [...this.builders, ...other.builders]
     n.handlers = [...this.handlers, ...other.handlers]
+    n.post_fns = [...this.post_fns, ...other.post_fns]
     return n
   }
 
@@ -76,6 +80,8 @@ export class OptionParser<T = {}> {
     let short = opts.short
     let long = opts?.long ? '--' + opts?.long : ''
 
+    if (opts.post)
+      n.post_fns.push(opts.post)
     n.builders.push(function (obj) { obj[key] = 0 })
     n.handlers.push(function flag(inst, args, pos) {
       let arg = args[pos]
@@ -116,6 +122,8 @@ export class OptionParser<T = {}> {
     let repeating = opts.repeating
     let found = Symbol("found-" + key)
 
+    if (opts.post)
+      n.post_fns.push(opts.post)
     let def = opts.default
     if (def) {
       n.builders.push(function (inst) { inst[key] = def })
@@ -165,6 +173,7 @@ export class OptionParser<T = {}> {
   sub<K extends string, V>(key: K, kls: OptionParser<V>): OptionParser<T & {[key in K]: V[]}> {
     this.builders.push(function (i: any) { i[key] = [] })
     this.handlers.push(function group(inst: any, args, pos) {
+      if (args[pos][0] === "-") return undefined // can't start on options ?
       inst[key] = []
       let subres = kls.prebuild()
       let res = kls.doParse(subres, args, pos)
@@ -174,9 +183,8 @@ export class OptionParser<T = {}> {
     return this as any
   }
 
-  _post?: (t: T) => any
   post<U>(fn: (t: T) => U): U extends void | Promise<void> ? OptionParser<T> : OptionParser<U> {
-    this._post = fn
+    this.post_fns.push(fn)
     return this as any
   }
 
@@ -212,7 +220,11 @@ export class OptionParser<T = {}> {
       throw new Error(`leftovers: ${args.slice(pos).join(' ')}`)
     }
 
-    return this._post?.(res) ?? res
+    for (let post of this.post_fns) {
+      let rpost = post(res)
+      if (rpost != null) res = rpost
+    }
+    return res
   }
 }
 
