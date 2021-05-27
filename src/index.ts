@@ -4,7 +4,7 @@ import * as tty from "tty"
 import * as path from "path"
 
 import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error } from "./types"
-import { debug, file } from "./debug"
+import { coll, debug, file } from "./debug"
 
 export * from "./types"
 
@@ -211,6 +211,7 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
     if (chunk_is_collection(type, chunk)) {
       if (collection_handler) {
         await collection_handler.end()
+        collection_handler = null
       }
       collection = chunk
     } else if (chunk_is_data(type, chunk)) {
