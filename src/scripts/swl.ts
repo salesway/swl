@@ -83,6 +83,10 @@ async function get_commands() {
     commands.push({source: true, command})
     for (let item of process.argv.slice(2)) {
       if (item === "::") {
+        // Special case if the command starts with :: to mean we *do* want to begin
+        // with a sink, eg. if we're running the command over ssh.
+        if (commands.length === 1 && commands[0].command.length === 0)
+          commands = []
         command = []
         commands.push({source: false, command})
       } else if (item === "++") {
@@ -98,6 +102,8 @@ async function get_commands() {
   let first = true
 
   for (let c of commands) {
+    if (!c.command[0]) throw new Error("a command may not be empty")
+
     if (!first) { builder.push("|") } else { first = false }
     let res = c.command.slice(1)
     let item = await figure_out_who(c.command[0], c.source)
