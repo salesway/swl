@@ -4,7 +4,7 @@ import * as tty from "tty"
 import * as path from "path"
 
 import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error } from "./types"
-import { coll, debug, file } from "./debug"
+import { debug, file } from "./debug"
 
 export * from "./types"
 
