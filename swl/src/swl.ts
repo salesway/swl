@@ -1,7 +1,10 @@
 #!/usr/bin/env -S node --enable-source-maps
 
 class AliasMap {
+  map = new Map<string, {source: string | null, sink: string | null}>()
+
   add(source: string | null, sink: string | null, ...names: string[]): this {
+    for (let n of names) { this.map.set(n, {source, sink}) }
     return this
   }
 }
@@ -22,23 +25,29 @@ let file_extensions = new AliasMap()
 let prototols = new AliasMap()
   .add("swl-pg-src", "swl-pg-sink", "postgres://")
 
-let argv = process.argv.slice(2)
 
-let commands: {command: string[], source: boolean}[] = []
-{
-  let command: string[] = []
-  commands.push({source: true, command})
-  for (let item of process.argv.slice(2)) {
-    if (item === "::") {
-      command = []
-      commands.push({source: false, command})
-    } else if (item === "++") {
-      command = []
-      commands.push({source: true, command})
-    } else {
-      command.push(item)
+console.log(get_commands())
+
+//////////////////////////////////////////////////////////////////////
+//// Utility functions
+//////////////////////////////////////////////////////////////////////
+
+function get_commands() {
+  let commands: {command: string[], source: boolean}[] = []
+  {
+    let command: string[] = []
+    commands.push({source: true, command})
+    for (let item of process.argv.slice(2)) {
+      if (item === "::") {
+        command = []
+        commands.push({source: false, command})
+      } else if (item === "++") {
+        command = []
+        commands.push({source: true, command})
+      } else {
+        command.push(item)
+      }
     }
   }
+  return commands
 }
-
-console.log(commands)

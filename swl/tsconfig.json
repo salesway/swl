@@ -16,10 +16,6 @@
     },
 	"include": [
         "./src/index.ts",
-        "./src/flatten.ts",
-        "./src/unflatten.ts",
-        "./src/coerce.ts",
-        "./src/uncoerce.ts",
-        "./src/swl.ts"
+        "./scripts/*.ts"
     ]
 }
