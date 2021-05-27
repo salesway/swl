@@ -113,8 +113,7 @@ export class OptionParser<T = {}> {
         (undefined extends F["default"] ? ProbablyString<U> | undefined : ProbablyString<U>)
       : (undefined extends F["default"] ? ProbablyString<U> | undefined : ProbablyString<U>)[]
     >>
-
-{
+  {
     let n = this.clone<any>()
 
     let short_eql = "-" + opts.short + "="
@@ -155,7 +154,7 @@ export class OptionParser<T = {}> {
       return pos + 1
     })
 
-    return this as any
+    return n
   }
 
   arg<K extends string>(key: K): OptionParser<T & {[key in K]: string}> {

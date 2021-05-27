@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log1, emit, source, optparser, default_opts, file, } from "../index"
+import { log2, emit, source, optparser, default_opts, file, } from "../index"
 import * as DB from "better-sqlite3"
 
 let src_parser = optparser()
@@ -19,7 +19,7 @@ let opts = opt_parser.parse()
 
 source(() => {
   let db = new DB(opts.file, {readonly: true, fileMustExist: true})
-  log1("Opened file", file(opts.file))
+  log2("Opened file", file(opts.file))
   var sources = opts.collections
 
   if (sources.length === 0) {
@@ -50,5 +50,6 @@ source(() => {
     }
   }
 
+  log2("Finished sending")
 })
 

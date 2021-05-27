@@ -1,8 +1,8 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log1, log3, sink, optparser, CollectionHandler, Handler, default_opts } from "../index"
+import { log2, log3, sink, optparser, CollectionHandler, Handler, default_opts } from "../index"
 import * as DB from "better-sqlite3"
-import { coll } from "../debug"
+import { file } from "../debug"
 
 let col_parser = optparser()
   .arg("name")
@@ -62,7 +62,6 @@ function collection_handler(name: string, start: any): CollectionHandler {
   if (!opts.upsert) {
     const sql = `INSERT INTO "${table}" (${columns.map(c => `"${c}"`).join(", ")})
     values (${columns.map(c => "?").join(", ")})`
-    // console.log(sql)
     stmt = db.prepare(sql)
   } else if (opts.upsert) {
     // Should I do some sub-query thing with coalesce ?
@@ -82,6 +81,7 @@ function collection_handler(name: string, start: any): CollectionHandler {
 }
 
 let db = new DB(opts.file, { fileMustExist: false })
+log2("Opened", file(opts.file))
 // if (opts.pragma) {
 
 // }
@@ -101,12 +101,12 @@ sink((): Handler => {
       return collection_handler(col.name, start)
     },
     error() {
-      log1("Rollbacking")
+      log2("Rollbacking")
       db.exec("ROLLBACK")
     },
     end() {
       db.exec("COMMIT")
-      log1("Commited changes")
+      log2("Commited changes")
       db.close()
     },
   }

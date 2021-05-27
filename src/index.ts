@@ -4,13 +4,17 @@ import * as tty from "tty"
 import * as path from "path"
 
 import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error } from "./types"
-import { coll, debug, file, num } from "./debug"
+import { coll, debug, num, c } from "./debug"
 
 export * from "./types"
 export * from "./debug"
 
+export const col_sink = c.hsl(1, 40, 40)
+export const col_src = c.hsl(170, 40, 40)
+export const col_alias = c.rgb(111, 111, 111)
+
 export function log(...a: any[]) {
-  console.error(`${file(self_name)}:`, ...a)
+  console.error(self_name, ...a)
 }
 
 
@@ -89,7 +93,7 @@ export namespace emit {
   }
 
   export function collection(name: string) {
-    if (_current != null) log2(coll(name), "emitted", num(_count), "lines")
+    if (_current != null) log1(coll(name), "emitted", num(_count), "lines")
     _current = name
     _count = 0
     chunk(ChunkType.Collection, { name })
@@ -253,7 +257,7 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
     if (!collection_handler) return
     await collection_handler.end()
     collection_handler = null
-    log2(coll(collection_name), "received", num(_count), "lines")
+    log1(coll(collection_name), "received", num(_count), "lines")
     collection = null
     _count = 0
   }
@@ -264,7 +268,11 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
 
 
 // The current executable name, used in target: when passing commands and messages.
-export const self_name: string = path.basename(process.argv[1]).replace(".js", "")
+export let self_name: string = path.basename(process.argv[1]).replace(".js", "").replace("swl-", "")
+if (self_name.includes("-src"))
+  self_name = col_src(self_name.replace("-src", " » "))
+if (self_name.includes("sink"))
+  self_name = col_sink(self_name.replace("-sink", " « "))
 
 
 /**
@@ -398,6 +406,9 @@ export let log2 = (...a: any[]) => { }
 export let log3 = (...a: any[]) => { }
 
 export const default_opts = optparser()
+  .option("alias", {short: "a", long: "alias", default: "", post: inst => {
+    self_name = self_name + col_alias("(" + inst["alias"] + ")")
+  }})
   .flag("verbose", {short: "v", long: "verbose", post: inst => {
     let verb = inst["verbose"]
     if (verb >= 1) log1 = log
