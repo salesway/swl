@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { emit, sink } from '../index'
+import { emit, sink } from "../index"
 
 sink(function () {
   return {

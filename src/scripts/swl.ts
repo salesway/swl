@@ -20,7 +20,7 @@ let alias = new AliasMap()
 
 let file_extensions = new AliasMap()
   .add("swl-sqlite-src", "swl-sqlite-sink", ".db", ".sqlite")
-  .add("swl-xls-src", "swl-xls-sink", ".xlsx", ".ods", ".xlsb", ".xls")
+  .add("swl-xls-src", "swl-xls-sink", ".xlsx", ".ods", ".xlsb", ".xls", '.xlsm')
 
 let prototols = new AliasMap()
   .add("swl-pg-src", "swl-pg-sink", "postgres://")

@@ -346,8 +346,9 @@ export function source<T>(fn: () => T) {
 export { optparser, FlagOpts, OptionParser } from "./optparse"
 
 process.on("uncaughtException", err => {
+  emit.error({message: err.message})
   log(err)
-  throw err
+  process.exit(1)
 })
 
 export class Lock<T> {
