@@ -1,6 +1,10 @@
 {
 	"name": "swl-pg",
 	"version": "0.0.1",
+	"bin": {
+		"swl-pg-sink": "lib/pg-sink.js",
+		"swl-pg-src": "lib/pg-source.js"
+	},
 	"dependencies": {
 		"pg": "^8.6.0",
 		"pg-copy-streams": "^5.1.1"

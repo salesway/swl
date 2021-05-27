@@ -6,6 +6,7 @@ import * as path from "path"
 import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error } from "./types"
 import { debug, file } from "./debug"
 
+export * from "./types"
 
 export function log(...a: any[]) {
   console.error(`${file(self_name)}:`, ...a)
@@ -162,6 +163,7 @@ export interface Handler {
    * Called before collection start
    */
   collection(col: Collection, data: Data): Promise<CollectionHandler> | CollectionHandler
+  init?(): Promise<void> | void
   message?(message: Message): Promise<void> | void
   error?(error: ErrorChunk): Promise<void> | void
   end(): Promise<void> | void
@@ -179,6 +181,13 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
 
   if (tty.isatty(0)) throw new Error(`a sink needs an input`)
   let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
+
+  try {
+    await handler.init?.()
+  } catch (e) {
+    log(e)
+    throw e
+  }
 
   while ((read = reader.next())) {
     let type = read.type
@@ -211,12 +220,19 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
         await handler.error(chunk)
       }
       report_error(chunk)
+      await handler.finally?.()
       return
     }
 
     // console.log(packet)
   }
+
+  if (collection_handler) {
+    await collection_handler.end()
+  }
+
   await handler.end()
+  await handler.finally?.()
 }
 
 
@@ -322,4 +338,27 @@ export { optparser, FlagOpts, OptionParser } from "./optparse"
 
 process.on("uncaughtException", err => {
   log(err)
+  throw err
 })
+
+export class Lock<T> {
+
+  promise: Promise<T>
+  _accept!: (t: T) => void
+  _reject!: (e: any) => void
+  constructor() {
+
+    this.promise = new Promise((accept, reject) => {
+      this._accept = accept
+      this._reject = reject
+    })
+  }
+
+  resolve(t: T) {
+    this._accept(t)
+  }
+
+  reject(e: any) {
+    this._reject(e)
+  }
+}

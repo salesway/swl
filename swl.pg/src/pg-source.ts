@@ -2,8 +2,6 @@
 
 import { Client as PgClient } from 'pg'
 
-// import { from as copy_from } from 'pg-copy-streams'
-
 import { emit, optparser, source, uri_maybe_open_tunnel } from 'swl'
 
 
@@ -14,12 +12,14 @@ const opts = optparser()
     .arg("name")
     .option("query", { short: "q", help: "query" })
   )
-
-.parse()
+  .post(opts => {
+    if (!opts.uri) throw new Error(`pg source expects an uri`)
+  })
+  .parse()
 
 source(async function pg_source() {
   let open = await uri_maybe_open_tunnel(opts.uri)
-  let uri = `postgres://${open.uri}`
+  let uri = open.uri.startsWith("postgres://") ? open.uri : `postgres://${open.uri}`
 
   let client = new PgClient(uri)
   async function process() {
