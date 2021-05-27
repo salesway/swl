@@ -15,6 +15,10 @@ export class OptionParser<T = {}> {
     return res
   }
 
+  include<U>(optparse: OptionParser<U>): OptionParser<T & U> {
+
+  }
+
   flag<K extends string>(key: K, opts: FlagOpts): OptionParser<T & {[key in K]: boolean}> {
     let short = '-' + opts.short
     let long = opts?.long ? '--' + opts?.long : ''
@@ -63,7 +67,7 @@ export class OptionParser<T = {}> {
   }
 
   sub<K extends string, V>(key: K, kls: OptionParser<V>): OptionParser<T & {[key in K]: V[]}> {
-    this.builders.push((i: any) => i[key] = [])
+    this.builders.push(function (i: any) { i[key] = [] })
     this.handlers.push(function group(inst: any, args, pos) {
       inst[key] = []
       let subres = kls.prebuild()

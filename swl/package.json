@@ -4,6 +4,12 @@
   "description": "",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "bin": {
+    "swl-uncoerce": "lib/uncoerce.js",
+    "swl-coerce": "lib/coerce.js",
+    "swl-flatten": "lib/flatten.js",
+    "swl-unflatten": "lib/unflatten.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
