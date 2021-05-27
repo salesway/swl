@@ -2,7 +2,7 @@
 
 import { Client as PgClient } from 'pg'
 
-import { emit, optparser, source, uri_maybe_open_tunnel } from 'swl'
+import { emit, optparser, source, uri_maybe_open_tunnel } from '../index'
 
 
 const opts = optparser()

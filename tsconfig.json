@@ -16,6 +16,6 @@
     },
 	"include": [
         "./src/index.ts",
-        "./scripts/*.ts"
+        "./src/scripts/*.ts"
     ]
 }

@@ -1,24 +1,17 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { emit, source, optparser } from "swl"
+import { emit, source, optparser } from "../index"
 import * as DB from "better-sqlite3"
-
-import { uncoerce } from "./common"
 
 let src_parser = optparser()
   .arg("name")
-  .flag("uncoerce", {short: "u", long: "uncoerce"})
   .option("query", {short: "q", long: "query"})
 
 let opt_parser = optparser()
   .arg("file")
-  .flag("uncoerce", {short: "u", long: "uncoerce"})
   .sub("collections", src_parser)
   .post(opts => {
     if (!opts.file) throw new Error("sqlite source expects a file name")
-    if (opts.uncoerce) {
-      for (let c of opts.collections) c.uncoerce = true
-    }
   })
 
 let opts = opt_parser.parse()
@@ -35,7 +28,6 @@ source(() => {
 
     sources = st.all().map((name: string) => {
       let res = src_parser.prebuild()
-      if (opts.uncoerce) res.uncoerce = true
       res.name = name
       return res
     })
@@ -50,13 +42,6 @@ source(() => {
     // this.info(`Started ${colname}`)
     var iterator = (stmt as any).iterate() as IterableIterator<any>
     for (var s of iterator) {
-      if (source.uncoerce) {
-        var s2: any = {}
-        for (var x in s)
-          s2[x] = uncoerce(s[x])
-        s = s2
-      }
-
       emit.data(s)
     }
   }

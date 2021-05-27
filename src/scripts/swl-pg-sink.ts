@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { CollectionHandler, log, optparser, sink, uri_maybe_open_tunnel, Lock, Collection } from 'swl'
+import { CollectionHandler, log, optparser, sink, uri_maybe_open_tunnel, Lock, Collection } from '../index'
 
 import { Client as PgClient, types } from 'pg'
 import { from as copy_from } from 'pg-copy-streams'

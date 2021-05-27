@@ -1,7 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log, sink, optparser, CollectionHandler, Handler } from "swl"
-import { coerce } from "./common"
+import { log, sink, optparser, CollectionHandler, Handler } from "../index"
 import * as DB from "better-sqlite3"
 
 let col_parser = optparser()
@@ -73,7 +72,7 @@ function collection_handler(name: string, start: any): CollectionHandler {
 
   return {
     data(data) {
-      stmt.run(...columns.map(c => coerce(data[c])))
+      stmt.run(...columns.map(c => data[c]))
     },
     end() {
 

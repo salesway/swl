@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { sink, emit } from './index'
+import { sink, emit } from '../index'
 
 sink(function () {
   return {
@@ -10,7 +10,7 @@ sink(function () {
 
       return {
         data(data) {
-          let res = {}
+          let res: {[name: string]: any} = {}
           for (let x in data) {
             res[x] = coerce(data[x])
           }

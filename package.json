@@ -5,10 +5,14 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "bin": {
-    "swl-uncoerce": "lib/uncoerce.js",
-    "swl-coerce": "lib/coerce.js",
-    "swl-flatten": "lib/flatten.js",
-    "swl-unflatten": "lib/unflatten.js"
+    "swl-pg-sink": "lib/scripts/swl-pg-sink.js",
+    "swl-pg-src": "lib/scripts/swl-pg-src.js",
+    "swl-sqlite-sink": "lib/scripts/swl-sqlite-sink.js",
+    "swl-sqlite-src": "lib/scripts/swl-sqlite-source.js",
+    "swl-uncoerce": "lib/scripts/swl-uncoerce.js",
+    "swl-coerce": "lib/scripts/swl-coerce.js",
+    "swl-flatten": "lib/scripts/swl-flatten.js",
+    "swl-unflatten": "lib/scripts/swl-unflatten.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -16,16 +20,20 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@types/chalk": "^2.2.0",
-    "@types/get-port": "^4.2.0",
+    "better-sqlite3": "^7.4.0",
     "chalk": "^4.1.1",
     "get-port": "^5.1.1",
-    "reflect-metadata": "^0.1.13",
+    "pg": "^8.6.0",
     "ssh-config": "^4.0.6",
     "tunnel-ssh": "^4.1.4"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^5.4.1",
+    "@types/chalk": "^2.2.0",
+    "@types/get-port": "^4.2.0",
     "@types/node": "^13.9.5",
+    "@types/pg": "^8.6.0",
+    "@types/pg-copy-streams": "^1.2.1",
     "@types/tunnel-ssh": "^4.1.0"
   }
 }
