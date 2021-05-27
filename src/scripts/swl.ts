@@ -29,11 +29,17 @@ let file_extensions = new AliasMap()
 
 let protocols = new AliasMap()
   .add(_("pg-src"), _("pg-sink"), "postgres://")
+  // add mysql
+  // add mssql
+  // add oracle
 
 
 get_commands().then(c => {
-  let res = execSync(c, { stdio: "inherit" })
-  // console.log(c)
+  try {
+    execSync(c, { stdio: "inherit" })
+  } catch (e) {
+    process.exit(e.status)
+  }
 })
 
 //////////////////////////////////////////////////////////////////////
@@ -49,13 +55,13 @@ async function figure_out_who(item: string, source: boolean): Promise<string[]> 
   // First figure out if it was named in its alias
   let alv = alias.map.get(item)
   if (alv != null) {
-    return ["node", "--enable-source-maps", source? alv.source : alv.sink]
+    return ["node", "--enable-source-maps", source? alv.source ?? "non-existent-source" : alv.sink ?? "non-existent-sink"]
   }
 
   let ext = extname(item)
   alv = file_extensions.map.get(ext)
   if (alv != null) {
-    return ["node", "--enable-source-maps", source ? alv.source : alv.sink, item]
+    return ["node", "--enable-source-maps", source? alv.source ?? "non-existent-source" : alv.sink ?? "non-existent-sink", item]
   }
 
   let re_protocol = /^[-+a-zA-Z_]+:\/\//
@@ -63,7 +69,7 @@ async function figure_out_who(item: string, source: boolean): Promise<string[]> 
   if (match != null) {
     alv = protocols.map.get(match[0])
     if (alv != null) {
-      return ["node", "--enable-source-maps", source ? alv.source : alv.sink, item]
+      return ["node", "--enable-source-maps", source? alv.source ?? "non-existent-source" : alv.sink ?? "non-existent-sink", item]
     }
   }
 

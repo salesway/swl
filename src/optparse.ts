@@ -1,3 +1,10 @@
+//
+// TODO: Add a way to specify several short flags ie: -fvi
+// TODO: Add a way to *repeat* flags -v -vv -vvv
+// TODO: Add a way for flags to optionaly have values or be lists
+//    -c  -c=value  -c=value,value2  --longflag=value,value2,value3
+// TODO: Add validation for some options
+// TODO: Add required / optional
 
 export interface FlagOpts {
   short: string
