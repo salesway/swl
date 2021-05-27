@@ -7,6 +7,7 @@ import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_messa
 import { debug, file } from "./debug"
 
 export * from "./types"
+export * from "./debug"
 
 export function log(...a: any[]) {
   console.error(`${file(self_name)}:`, ...a)
@@ -303,13 +304,11 @@ export async function uri_maybe_open_tunnel(uri: string) {
 
 
 export function emit_upstream(): boolean {
-  // let fd = fs.openSync("/dev/stdin", "rs")
+
   if (tty.isatty(0)) {
     return true
   }
-  // fs.closeSync(fd)
-  // let fd = fs.openSync("/dev/stdout", "as+")
-  // let out = process.stdout
+
   let should_forward = !tty.isatty(out)
   let reader = packet_reader()
   let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>

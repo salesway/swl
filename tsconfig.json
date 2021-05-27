@@ -14,8 +14,4 @@
         "lib": ["es2017", "esnext"],
         "types": ["node"]
     },
-	"include": [
-        "./src/index.ts",
-        "./src/scripts/*.ts"
-    ]
 }

@@ -24,15 +24,15 @@ let opts_parser = optparser()
   .flag("notice", { short: "n", long: "notice", help: "Display NOTICE statements" })
   .flag("notify", { short: "y", long: "notify", help: "Display LISTEN/NOTIFY requests" })
   .flag("ignore_nonexisting", { short: "i", long: "ignore-non-existing", help: "Ignore tables that don't exist"})
-  .option("schema", { short: "s", long: "schema" })
+  .option("schema", { short: "s", long: "schema", default: "public" })
   .flag("passthrough", {short: "p", long: "passthrough", help: "Forward all data to the next pipe"})
   .flag("verbose", {short: "v", long: "verbose", help: "Display statements run on the sink"})
   .sub("collections", col_parser)
   .post(opts => {
     for (let c of opts.collections) {
-      if (opts.truncate) c.truncate = true
-      if (opts.drop) c.drop = true
-      if (opts.upsert) c.upsert = true
+      if (opts.truncate) c.truncate = 1
+      if (opts.drop) c.drop = 1
+      if (opts.upsert) c.upsert = 1
     }
 
     if (!opts.uri) throw new Error("pg-sink expects a URI")
@@ -55,7 +55,7 @@ sink(async () => {
   let db = new PgClient(uri)
 
   return {
-    passthrough: opts.passthrough,
+    passthrough: !!opts.passthrough,
 
     // Setup the database and some global options, such as displaying notices
     async init() {
@@ -165,7 +165,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
       stream.end()
 
       // Figure out if the input name is dotted or not. If not, then use "public" ?
-      let schema = opts.schema ?? "public"
+      let schema = opts.schema
       let table_name = table
       if (table.includes("."))
         [schema, table_name] = table.split(".")

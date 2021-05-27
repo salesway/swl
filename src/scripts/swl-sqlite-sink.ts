@@ -2,6 +2,7 @@
 
 import { log, sink, optparser, CollectionHandler, Handler } from "../index"
 import * as DB from "better-sqlite3"
+import { coll } from "../debug"
 
 let col_parser = optparser()
   .arg("name")
@@ -19,9 +20,9 @@ let opts_parser = optparser()
   .sub("collections", col_parser)
   .post(opts => {
     for (let c of opts.collections) {
-      if (opts.truncate) c.truncate = true
-      if (opts.drop) c.drop = true
-      if (opts.upsert) c.upsert = true
+      if (opts.truncate) c.truncate = 1
+      if (opts.drop) c.drop = 1
+      if (opts.upsert) c.upsert = 1
     }
 
     if (!opts.file) throw new Error("sqlite source expects a file name")
@@ -31,7 +32,7 @@ let opts = opts_parser.parse()
 
 
 function exec(stmt: string) {
-  if (opts.verbose) log(stmt)
+  log2(stmt)
   db.exec(stmt)
 }
 
@@ -95,17 +96,28 @@ let db = new DB(opts.file, { fileMustExist: false })
 sink((): Handler => {
   db.exec("BEGIN")
   return {
-    passthrough: opts.passthrough,
+    passthrough: !!opts.passthrough,
     collection(col, start) {
+      log1("Received collection", coll(col.name))
       return collection_handler(col.name, start)
     },
     error() {
+      log1("Rollbacking")
       db.exec("ROLLBACK")
     },
     end() {
       db.exec("COMMIT")
+      log1("Commited changes")
       db.close()
     },
   }
 
 })
+
+function log1(...a: any[]) {
+  if (opts.verbose >= 1) log(...a)
+}
+
+function log2(...a: any[]) {
+  if (opts.verbose >= 2) log(...a)
+}

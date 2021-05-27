@@ -7,7 +7,7 @@ import { emit, optparser, source, uri_maybe_open_tunnel } from '../index'
 
 const opts = optparser()
   .arg("uri")
-  .option("schema", { short: "s", help: "schema from which get" })
+  .option("schema", { short: "s", help: "schema from which get", default: "public" })
   .sub("sources", optparser()
     .arg("name")
     .option("query", { short: "q", help: "query" })
@@ -27,7 +27,7 @@ source(async function pg_source() {
 
     let queries = opts.sources.length ?
       opts.sources.map(s => ({ name: s.name, query: s.query ?? /* sql */`select * from ${s.name}` }))
-      : await get_all_tables_from_schema(client, opts.schema ?? "public")
+      : await get_all_tables_from_schema(client, opts.schema)
 
     for (let q of queries) {
       const result = await client.query(q.query)
