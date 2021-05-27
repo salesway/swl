@@ -5,10 +5,11 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "bin": {
+    "swl-xls-source": "lib/scripts/swl-xlsx-src.js",
     "swl-pg-sink": "lib/scripts/swl-pg-sink.js",
     "swl-pg-src": "lib/scripts/swl-pg-src.js",
     "swl-sqlite-sink": "lib/scripts/swl-sqlite-sink.js",
-    "swl-sqlite-src": "lib/scripts/swl-sqlite-source.js",
+    "swl-sqlite-src": "lib/scripts/swl-sqlite-src.js",
     "swl-uncoerce": "lib/scripts/swl-uncoerce.js",
     "swl-coerce": "lib/scripts/swl-coerce.js",
     "swl-flatten": "lib/scripts/swl-flatten.js",
