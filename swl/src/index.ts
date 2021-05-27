@@ -17,6 +17,15 @@ const out = fs.openSync("/dev/stdout", "w")
 
 export namespace emit {
 
+  // The whole emit facilities use the synchronized write API.
+  // Why not process.stdout ? Simply because it is a tad slower in most
+  // situations, due to the asynchronous dispatching of data, and
+  // because it would force the implementer to await on each emit to check
+  // for "drain" events when the backpressure is too high.
+  //
+  // There are situations where it might be slower, but so far I have not
+  // met them.
+
   const header = new Uint8Array(5)
   const len_buf = new Uint32Array(header.buffer, 0, 1)
 

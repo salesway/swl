@@ -14,5 +14,11 @@
         "lib": ["es2017", "esnext"],
         "types": ["node"]
     },
-	"include": ["./src/index.ts", "./src/out.ts", "./src/in.ts", "./src/bstream.d.ts"]
+	"include": [
+        "./src/index.ts",
+        "./src/flatten.ts",
+        "./src/unflatten.ts",
+        "./src/coerce.ts",
+        "./src/uncoerce.ts"
+    ]
 }
