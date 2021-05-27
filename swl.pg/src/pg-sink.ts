@@ -17,6 +17,8 @@ let opts_parser = optparser()
   .flag("notice", { short: "n", long: "notice", help: "Display NOTICE statements" })
   .flag("notify", { short: "y", long: "notify", help: "Display LISTEN/NOTIFY requests" })
   .flag("truncate", {short: "t", long: "truncate", help: "Always truncate tables before inserting data"})
+  .flag("ignore_nonexisting", { short: "i", long: "ignore-non-existing", help: "Ignore tables that don't exist"})
+  .flag("auto_create", { short: "a", long: "auto-create", help: "Create table if they didn't exist" })
   .flag("drop", {short: "d", long: "drop"})
   .flag("upsert", {short: "u", long: "upsert"})
   .option("schema", { short: "s", long: "schema" })
@@ -109,11 +111,18 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
   }
 
   // Create the table if it didn't exist
-  await db.query(/* sql */`
-    CREATE TABLE IF NOT EXISTS ${table} (
-      ${columns.map((c, i) => `"${c}" ${types[i]}`).join(', ')}
-    )
-  `)
+  if (opts.auto_create) {
+    await db.query(/* sql */`
+      CREATE TABLE IF NOT EXISTS ${table} (
+        ${columns.map((c, i) => `"${c}" ${types[i]}`).join(', ')}
+      )
+    `)
+  }
+
+  if (opts.truncate) {
+    verbose_log(`truncating ${table}`)
+    await db.query(/* sql */`DELETE FROM ${table}`)
+  }
 
   // Create a temporary table that will receive all the data through pg COPY
   // command. This table will hold plain json objects
@@ -124,13 +133,11 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
     )
   `)
 
-  // this.columns_str = columns.map(c => `"${c}"`).join(', ')
-
-  if (opts.truncate) {
-    verbose_log(`truncating ${table}`)
-    await db.query(/* sql */`DELETE FROM ${table}`)
-  }
-
+  // We create a copy stream to the database where we will dump exactly one JSON
+  // object per line, using @ as the quote character, which we double in the stream input.
+  // This is because we will then use the fantastic json_populate_record to
+  // actually create the rows when inserting.
+  // Which means that old versions of postgres are *not* supported by this sink.
   let stream: NodeJS.WritableStream = await db.query(
     copy_from(/* sql */`COPY ${temp_table_name}(jsondata) FROM STDIN
       WITH
