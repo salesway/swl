@@ -58,6 +58,15 @@ async function figure_out_who(item: string, source: boolean): Promise<string[]> 
     return ["node", "--enable-source-maps", source ? alv.source : alv.sink, item]
   }
 
+  let re_protocol = /^[-+a-zA-Z_]+:\/\//
+  let match = re_protocol.exec(item)
+  if (match != null) {
+    alv = protocols.map.get(match[0])
+    if (alv != null) {
+      return ["node", "--enable-source-maps", source ? alv.source : alv.sink, item]
+    }
+  }
+
   return [item]
 }
 
