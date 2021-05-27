@@ -53,7 +53,7 @@ export class OptionParser<T = {}> {
   private builders: ((inst: any) => void)[] = []
   private post_fns: ((inst: any) => any)[] = []
 
-  private clone<T>() {
+  clone<T = this>() {
     let n = new OptionParser<T>()
     n.builders = this.builders.slice()
     n.handlers = this.handlers.slice() as any

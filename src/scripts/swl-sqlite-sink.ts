@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log2, log3, sink, optparser, CollectionHandler, Handler, default_opts } from "../index"
+import { log2, log3, sink, optparser, CollectionHandler, Handler, default_opts, col_table } from "../index"
 import * as DB from "better-sqlite3"
 import { file } from "../debug"
 
@@ -45,6 +45,7 @@ function collection_handler(name: string, start: any): CollectionHandler {
   : "text")
 
   if (opts.drop) {
+    log2("Dropping", col_table(table))
     exec(`DROP TABLE IF EXISTS "${table}"`)
   }
 
@@ -55,6 +56,7 @@ function collection_handler(name: string, start: any): CollectionHandler {
   )`)
 
   if (opts.truncate) {
+    log2("Truncating", col_table(table))
     exec(`DELETE FROM "${table}"`)
   }
 

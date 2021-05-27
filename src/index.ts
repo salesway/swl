@@ -12,6 +12,7 @@ export * from "./debug"
 export const col_sink = c.hsl(1, 40, 40)
 export const col_src = c.hsl(170, 40, 40)
 export const col_alias = c.rgb(111, 111, 111)
+export const col_table = c.rgb(14, 130, 130)
 
 export function log(...a: any[]) {
   console.error(self_name, ...a)
@@ -93,11 +94,15 @@ export namespace emit {
   }
 
   export function collection(name: string) {
-    if (_current != null) log1(coll(name), "emitted", num(_count), "lines")
+    if (_current != null) log1(coll(_current), "emitted", num(_count), "lines")
     _current = name
     _count = 0
     chunk(ChunkType.Collection, { name })
   }
+
+  process.on("beforeExit", _ => {
+    if (_current != null) log1(coll(_current), "emitted", num(_count), "lines")
+  })
 
   export function error(err: ErrorChunk) {
     let stack = {stack: ""}
@@ -415,3 +420,9 @@ export const default_opts = optparser()
     if (verb >= 2) log2 = log
     if (verb >= 3) log3 = log
   }})
+
+export const default_col_src_opts = optparser()
+  .arg("name")
+
+export const default_col_sql_src_opts = default_col_src_opts.clone()
+  .option("query", {short: "q", long: "query"})
