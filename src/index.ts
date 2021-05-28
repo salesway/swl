@@ -13,6 +13,7 @@ export const col_sink = c.hsl(1, 40, 40)
 export const col_src = c.hsl(170, 40, 40)
 export const col_alias = c.rgb(111, 111, 111)
 export const col_table = c.rgb(14, 130, 130)
+export const col_num = num
 
 export function log(...a: any[]) {
   console.error(self_name, ...a)
@@ -260,9 +261,9 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
 
   async function end_collection() {
     if (!collection_handler) return
+    log1(coll(collection_name), col_sink("received «"), num(_count), "lines")
     await collection_handler.end()
     collection_handler = null
-    log1(coll(collection_name), col_sink("received «"), num(_count), "lines")
     collection = null
     _count = 0
   }
@@ -412,7 +413,8 @@ export let log3 = (...a: any[]) => { }
 
 export const default_opts = optparser()
   .option("alias", {short: "a", long: "alias", default: "", post: inst => {
-    self_name = col_alias("(" + inst["alias"] + ") ") + self_name
+    if (inst["alias"])
+      self_name = col_alias("(" + inst["alias"] + ") ") + self_name
   }})
   .flag("verbose", {short: "v", long: "verbose", post: inst => {
     let verb = inst["verbose"]

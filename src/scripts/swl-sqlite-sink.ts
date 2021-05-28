@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log2, log3, sink, optparser, CollectionHandler, Handler, default_opts, col_table } from "../index"
+import { log2, log3, sink, optparser, CollectionHandler, Handler, default_opts, col_table, col_num } from "../index"
 import * as DB from "better-sqlite3"
 import { file } from "../debug"
 
@@ -77,7 +77,10 @@ function collection_handler(name: string, start: any): CollectionHandler {
       stmt.run(...columns.map(c => data[c]))
     },
     end() {
-
+      if (opts.verbose >= 2) {
+        let s = db.prepare(`select count(*) as cnt from "${table}"`)
+        log2("table", col_table(table), "now has", col_num(s.all()[0].cnt), "rows")
+      }
     }
   }
 }
