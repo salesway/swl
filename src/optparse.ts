@@ -116,8 +116,8 @@ export class OptionParser<T = {}> {
   {
     let n = this.clone<any>()
 
-    let short_eql = "-" + opts.short + "="
-    let long = opts?.long ? `--${opts.long}=` : null
+    let short = "-" + opts.short
+    let long = opts?.long ? `--${opts.long}` : null
     let repeating = opts.repeating
     let found = Symbol("found-" + key)
 
@@ -132,14 +132,20 @@ export class OptionParser<T = {}> {
     }
 
     n.handlers.push(function option(inst, args, pos) {
-      if (!repeating && inst[found]) return undefined
       let arg = args[pos]
+      if (!repeating && inst[found] || pos >= args.length - 1) return undefined
 
       let value: string | null = null
-      if (arg.startsWith(short_eql)) {
+      let advance: undefined | number
+      if (arg === short || arg === long) {
+        value = args[pos + 1]
+        advance = pos + 2
+      } else if (arg.startsWith(short + "=")) {
         value = arg.slice(3)
-      } else if (long != null && arg.startsWith(long)) {
-        value = arg.slice(long.length)
+        advance = pos + 1
+      } else if (arg.startsWith(long + "=")) {
+        value = arg.slice(long!.length + 1)
+        advance = pos + 1
       } else {
         // not handled
         return undefined
@@ -151,7 +157,7 @@ export class OptionParser<T = {}> {
         inst[key].push(value)
       else
         inst[key] = value
-      return pos + 1
+      return advance
     })
 
     return n

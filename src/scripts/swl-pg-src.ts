@@ -2,10 +2,11 @@
 
 import { Client as PgClient } from 'pg'
 
-import { emit, optparser, source, uri_maybe_open_tunnel } from '../index'
+import { default_opts, emit, optparser, source, uri_maybe_open_tunnel } from '../index'
 
 
 const opts = optparser()
+  .include(default_opts)
   .arg("uri")
   .option("schema", { short: "s", help: "schema from which get", default: "public" })
   .sub("sources", optparser()

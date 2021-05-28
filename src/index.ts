@@ -304,6 +304,7 @@ export async function uri_maybe_open_tunnel(uri: string) {
 
   const [remote_host, remote_port, user, password, host, port] = match.slice(1)
 
+  log1("opening ssh tunnel to", col_table(remote_host + ":" + remote_port), "from", col_table("127.0.0.1:" + local_port), "through", col_table(host))
   var config: any = {
     host, port: port,
     dstHost: remote_host, dstPort: remote_port,
