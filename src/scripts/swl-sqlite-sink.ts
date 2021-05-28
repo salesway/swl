@@ -45,7 +45,7 @@ function collection_handler(name: string, start: any): CollectionHandler {
   : "text")
 
   if (opts.drop) {
-    log2("Dropping", col_table(table))
+    log2("dropping", col_table(table))
     exec(`DROP TABLE IF EXISTS "${table}"`)
   }
 
@@ -56,7 +56,7 @@ function collection_handler(name: string, start: any): CollectionHandler {
   )`)
 
   if (opts.truncate) {
-    log2("Truncating", col_table(table))
+    log2("truncating", col_table(table))
     exec(`DELETE FROM "${table}"`)
   }
 
@@ -83,7 +83,7 @@ function collection_handler(name: string, start: any): CollectionHandler {
 }
 
 let db = new DB(opts.file, { fileMustExist: false })
-log2("Opened", file(opts.file))
+log2("opened file", file(opts.file), "to write")
 // if (opts.pragma) {
 
 // }
@@ -103,12 +103,12 @@ sink((): Handler => {
       return collection_handler(col.name, start)
     },
     error() {
-      log2("Rollbacking")
+      log2("rollbacked")
       db.exec("ROLLBACK")
     },
     end() {
       db.exec("COMMIT")
-      log2("Commited changes")
+      log2("commited changes")
       db.close()
     },
   }

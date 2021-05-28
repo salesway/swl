@@ -19,7 +19,7 @@ let opts = opt_parser.parse()
 
 source(() => {
   let db = new DB(opts.file, {readonly: true, fileMustExist: true})
-  log2("Opened file", file(opts.file))
+  log2("opened file", file(opts.file), "to read")
   var sources = opts.collections
 
   if (sources.length === 0) {
@@ -50,6 +50,6 @@ source(() => {
     }
   }
 
-  log2("Finished sending")
+  log2("finished sending")
 })
 

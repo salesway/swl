@@ -94,14 +94,14 @@ export namespace emit {
   }
 
   export function collection(name: string) {
-    if (_current != null) log1(coll(_current), "emitted", num(_count), "lines")
+    if (_current != null) log1(coll(_current), col_src("emitted »"), num(_count), "lines")
     _current = name
     _count = 0
     chunk(ChunkType.Collection, { name })
   }
 
   process.on("beforeExit", _ => {
-    if (_current != null) log1(coll(_current), "emitted", num(_count), "lines")
+    if (_current != null) log1(coll(_current), col_src("emitted »"), num(_count), "lines")
   })
 
   export function error(err: ErrorChunk) {
@@ -262,7 +262,7 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
     if (!collection_handler) return
     await collection_handler.end()
     collection_handler = null
-    log1(coll(collection_name), "received", num(_count), "lines")
+    log1(coll(collection_name), col_sink("received «"), num(_count), "lines")
     collection = null
     _count = 0
   }
@@ -275,9 +275,9 @@ export async function sink(_handler: Handler | (() => Promise<Handler> | Handler
 // The current executable name, used in target: when passing commands and messages.
 export let self_name: string = path.basename(process.argv[1]).replace(".js", "").replace("swl-", "")
 if (self_name.includes("-src"))
-  self_name = col_src(self_name.replace("-src", " » "))
+  self_name = col_src(self_name.replace("-src", " »"))
 if (self_name.includes("sink"))
-  self_name = col_sink(self_name.replace("-sink", " « "))
+  self_name = col_sink(self_name.replace("-sink", " «"))
 
 
 /**
@@ -412,7 +412,7 @@ export let log3 = (...a: any[]) => { }
 
 export const default_opts = optparser()
   .option("alias", {short: "a", long: "alias", default: "", post: inst => {
-    self_name = self_name + col_alias("(" + inst["alias"] + ")")
+    self_name = col_alias("(" + inst["alias"] + ") ") + self_name
   }})
   .flag("verbose", {short: "v", long: "verbose", post: inst => {
     let verb = inst["verbose"]
