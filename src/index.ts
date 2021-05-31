@@ -13,6 +13,7 @@ export const col_sink = c.hsl(1, 40, 40)
 export const col_src = c.hsl(170, 40, 40)
 export const col_alias = c.rgb(111, 111, 111)
 export const col_table = c.rgb(14, 130, 130)
+export const col_error = c.rgb(240, 14, 14).bold
 export const col_num = num
 
 export function log(...a: any[]) {
@@ -304,7 +305,7 @@ export async function uri_maybe_open_tunnel(uri: string) {
 
   const [remote_host, remote_port, user, password, host, port] = match.slice(1)
 
-  log1("opening ssh tunnel to", col_table(remote_host + ":" + remote_port), "from", col_table("127.0.0.1:" + local_port), "through", col_table(host))
+  log1("opening ssh tunnel to", col_table(remote_host + ":" + col_num(remote_port)), "from", col_table("127.0.0.1:" + col_num(local_port)), "through", col_table(host))
   var config: any = {
     host, port: port,
     dstHost: remote_host, dstPort: remote_port,
@@ -381,8 +382,9 @@ export { optparser, FlagOpts, OptionParser } from "./optparse"
 import { optparser } from "./optparse"
 
 process.on("uncaughtException", err => {
-  emit.error({message: err.message})
-  log(err)
+  log(col_error("error"), err.message)
+  if (!process.stdout.isTTY && !err.message.startsWith("EPIPE: broken pipe"))
+    emit.error({message: err.message})
   process.exit(1)
 })
 

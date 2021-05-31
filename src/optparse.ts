@@ -179,7 +179,7 @@ export class OptionParser<T = {}> {
     this.builders.push(function (i: any) { i[key] = [] })
     this.handlers.push(function group(inst: any, args, pos) {
       if (args[pos][0] === "-") return undefined // can't start on options ?
-      inst[key] = []
+      inst[key] = inst[key] ?? []
       let subres = kls.prebuild()
       let res = kls.doParse(subres, args, pos)
       inst[key].push(subres)

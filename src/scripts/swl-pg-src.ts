@@ -2,7 +2,7 @@
 
 import { Client as PgClient } from 'pg'
 
-import { default_opts, emit, optparser, source, uri_maybe_open_tunnel } from '../index'
+import { default_opts, emit, log1, optparser, source, uri_maybe_open_tunnel, col_src } from '../index'
 
 
 const opts = optparser()
@@ -42,6 +42,7 @@ source(async function pg_source() {
 
   try {
     await client.connect()
+    log1("connected to", col_src(uri))
     await process()
   } finally {
     client.end()

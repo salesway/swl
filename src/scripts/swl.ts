@@ -1,7 +1,10 @@
 #!/usr/bin/env -S node --enable-source-maps
 
+import { existsSync } from "fs"
 import { extname, join } from "path"
 import { execSync } from "child_process"
+import { performance } from "perf_hooks"
+import { col_num, log } from "../index"
 
 class AliasMap {
   map = new Map<string, {source: string | null, sink: string | null}>()
@@ -34,9 +37,12 @@ let protocols = new AliasMap()
   // add oracle
 
 
+let start = performance.now()
 get_commands().then(c => {
   try {
     execSync(c, { stdio: "inherit" })
+    let end = performance.now()
+    log("done in", col_num(Math.round(end - start)) + "ms",)
   } catch (e) {
     process.exit(e.status)
   }
@@ -71,6 +77,10 @@ async function figure_out_who(item: string, source: boolean): Promise<string[]> 
     if (alv != null) {
       return ["node", "--enable-source-maps", source? alv.source ?? "non-existent-source" : alv.sink ?? "non-existent-sink", item]
     }
+  }
+
+  if (existsSync(item)) {
+    item = "./" + item
   }
 
   return [item]

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { CollectionHandler, log, optparser, sink, uri_maybe_open_tunnel, Lock, Collection } from '../index'
+import { CollectionHandler, log, optparser, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts } from '../index'
 
 import { Client as PgClient, types } from 'pg'
 import { from as copy_from } from 'pg-copy-streams'
@@ -15,6 +15,7 @@ let col_parser = optparser()
 
 let opts_parser = optparser()
   .arg("uri")
+  .include(default_opts)
   .flag("auto_create", { short: "a", long: "auto-create", help: "Create table if they didn't exist" })
   .flag("drop", {short: "d", long: "drop"})
   .flag("upsert", {short: "u", long: "upsert"})
@@ -26,7 +27,6 @@ let opts_parser = optparser()
   .flag("ignore_nonexisting", { short: "i", long: "ignore-non-existing", help: "Ignore tables that don't exist"})
   .option("schema", { short: "s", long: "schema", default: "public" })
   .flag("passthrough", {short: "p", long: "passthrough", help: "Forward all data to the next pipe"})
-  .flag("verbose", {short: "v", long: "verbose", help: "Display statements run on the sink"})
   .sub("collections", col_parser)
   .post(opts => {
     for (let c of opts.collections) {
@@ -48,7 +48,7 @@ types.setTypeParser(1082, val => {
 
 
 sink(async () => {
-  verbose_log("Connecting to database...")
+  log2("connecting to database", col_sink(opts.uri))
   let open = await uri_maybe_open_tunnel(opts.uri)
   let uri = open.uri.startsWith("postgres://") ? open.uri : `postgres://${open.uri}`
 
@@ -60,7 +60,7 @@ sink(async () => {
     // Setup the database and some global options, such as displaying notices
     async init() {
       await db.connect()
-      verbose_log("Connected")
+      log2("connected")
 
       // Display notice
       if (opts.notice) {
@@ -88,10 +88,10 @@ sink(async () => {
 
     async end() {
       await db.query("COMMIT")
-      verbose_log("Commited changes")
+      log2("commited changes")
     },
     async finally() {
-      verbose_log("Disconnecting from database")
+      log2("cisconnecting from database")
       await db.end()
       await open.tunnel?.close()
     }
@@ -123,13 +123,13 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
   }
 
   if (opts.truncate) {
-    verbose_log(`truncating ${table}`)
+    log2(`truncating ${table}`)
     await db.query(/* sql */`DELETE FROM ${table}`)
   }
 
   // Create a temporary table that will receive all the data through pg COPY
   // command. This table will hold plain json objects
-  // verbose_log("Creating temp table", temp_table_name)
+  // log2("Creating temp table", temp_table_name)
   await db.query(/* sql */`
     CREATE TEMP TABLE ${temp_table_name} (
       jsondata json
@@ -161,7 +161,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
       }
     },
     async end() {
-      // verbose_log("closing COPY pipe")
+      // log2("closing COPY pipe")
       stream.end()
 
       // Figure out if the input name is dotted or not. If not, then use "public" ?
@@ -188,7 +188,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
       }
 
       // Now we have enough information to actually perform the INSERT statement
-      // verbose_log("Inserting data into", table, "from temp table")
+      // log2("Inserting data into", table, "from temp table")
 
       await db.query(/* sql */`
         INSERT INTO ${table}(${columns.map(c => `"${c}"`).join(', ')}) (
@@ -224,7 +224,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
       const sequences = seq_res.rows as {name: string, seq: string}[]
 
       for (var seq of sequences) {
-        verbose_log(`Resetting sequence ${seq.seq}`)
+        log2(`Resetting sequence ${seq.seq}`)
         await db.query(/* sql */`
           DO $$
           DECLARE
@@ -240,8 +240,4 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
 
     }
   }
-}
-
-function verbose_log(...a: any[]) {
-  if (opts.verbose) log(...a)
 }
