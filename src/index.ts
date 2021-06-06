@@ -185,7 +185,7 @@ export interface CollectionHandler {
   end(): Promise<void> | void
 }
 
-export interface Handler {
+export interface Sink {
   /**
    * Called before collection start
    */
@@ -198,7 +198,7 @@ export interface Handler {
   passthrough?: boolean
 }
 
-export async function sink(_handler: Handler | (() => Promise<Handler> | Handler)) {
+export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
 
   let handler = typeof _handler === "function" ? await _handler() : _handler
   let reader = packet_reader()
@@ -356,6 +356,7 @@ export function emit_upstream(): boolean {
       debug(type, obj)
     }
 
+    // Stop on error.
     if (type === ChunkType.Error) {
       return false
     }
@@ -377,9 +378,6 @@ export function source<T>(fn: () => T) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-export { optparser, FlagOpts, OptionParser } from "./optparse"
-import { optparser } from "./optparse"
 
 process.on("uncaughtException", err => {
   log(col_error("error"), err.message)
@@ -414,20 +412,35 @@ export let log1 = (...a: any[]) => { }
 export let log2 = (...a: any[]) => { }
 export let log3 = (...a: any[]) => { }
 
-export const default_opts = optparser()
-  .option("alias", {short: "a", long: "alias", default: "", post: inst => {
-    if (inst["alias"])
-      self_name = col_alias("(" + inst["alias"] + ") ") + self_name
-  }})
-  .flag("verbose", {short: "v", long: "verbose", post: inst => {
-    let verb = inst["verbose"]
-    if (verb >= 1) log1 = log
-    if (verb >= 2) log2 = log
-    if (verb >= 3) log3 = log
-  }})
 
-export const default_col_src_opts = optparser()
-  .arg("name")
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+
+export { optparser } from "./optparse"
+import { optparser, param, flag, arg } from "./optparse"
+
+
+export const default_opts = optparser(
+  param("alias", "-a", "--alias")
+    .help("give another name to this component in the pipe")
+    .map(alias => {
+      self_name = col_alias("(" + alias + ") ") + self_name
+      return alias
+    }),
+  flag("verbose", "-v", "--verbose")
+    .repeat()
+    .map(vb => {
+      let verb = vb.length
+      if (verb >= 1) log1 = log
+      if (verb >= 2) log2 = log
+      if (verb >= 3) log3 = log
+      return verb
+    })
+)
+
+export const default_col_src_opts = optparser(
+  arg("name").required()
+)
 
 export const default_col_sql_src_opts = default_col_src_opts.clone()
-  .option("query", {short: "q", long: "query"})
+  .add_handler(param("query", "-q", "--query"))

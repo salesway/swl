@@ -2,235 +2,344 @@
   Different ways ;
 
    - flag : counts the number of times a flag was seen. 0 is always the default.
-   - option : either looks at '=' or looks at the next argument
+   - param : oneof looks at '=' or looks at the next argument
    - sub : launches the parsing into another context. May have a "trigger" which can be
         anything (- or not)
+        the sub parser returns on the first argument it won't process
    - arg : positional argument. Must come in order. Argument cannot start with a '-'
-   - rest : gobbles up whatever it can read, but not option
+      arg actually behaves like param and should share stuff with it...
+   - trailing : gobbles up whatever it can read that is not an param
    - repeat : repeats a sub parser
    - value : sets a value on the resulting object
+
+   expect should always match when it gets to it otherwise it fails the match.
 */
 
-// TODO: Add a way to specify several short flags ie: -fvi
-// TODO: Add a way to *repeat* flags -v -vv -vvv
-// TODO: Add a way for flags to optionaly have values or be lists
-// TODO: Add validation for some options
-// TODO: Add required / optional
+
+type unionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never;
+type key<H> = H extends Handler<infer K, any> ? K : never
+type res<H> = H extends Handler<any, infer R> ? R : never
+
+type total_result<H extends (Handler<any, any> | CliParser<any>)[]> =
+  unionToIntersection<{
+    [n in keyof H]:
+      H[n] extends Handler<infer K, infer R> ? {[k in K]: R}
+      : H[n] extends CliParser<infer Res> ? Res
+      : never
+  }[number]>
+
+type optType<O> = O extends CliParser<infer V> ? V : never
+
+export const NoMatch = Symbol('nomatch')
+export const StopMatching = Symbol('stopmatching')
 
 
-export interface FlagOpts<T> {
-  short: string
-  long?: string
-  help?: string
-  default?: T
-  repeating?: boolean
-  post?: (inst: any) => any
-  transform?: (s: string) => T
+// the handler starts by collecting all the strings it needs to perform its changes
+// once all the arguments are reparted to their respective handlers, they are then asked
+// to provide a value or an error.
+
+// The MatchError stops the parsing of the current paramParser
+export class MatchError {
+  constructor(public message: string) { }
 }
 
-export interface Option<K extends string, U> {
+/**
+ * A Handler is asked to scan the input at a given position and returns
+ *  - the elements it will consume, or
+ *  - nothing, in which case the next handler will be asked for content, or
+ *  - a match error
+ */
+export class Handler<K extends string, T> {
 
-  key: K
+  constructor(
+    public scan: (args: string[], pos: number, acc: string[][]) => string[] | undefined | MatchError,
+    public value: (strs: string[][]) => T | MatchError,
+    public opts: {
+      key: K,
+      help?: string
+      group?: string
+      activators?: string[]
+    }
+  ) { }
 
-  builder: () => U
+  help(help: string) { this.opts.help = help; return this }
+  group(group: string) { this.opts.group = group; return this }
 
-  /**
-   * scan the argument at position `pos` in `argv` and reply wether the position was consumed
-   * or wether we stayed on the same position but we still consumed the argument
-   */
-  scan(argv: string[], pos: number): number
+  derive<U>(value?: Handler<K, U>["value"], scan?: this["scan"]): Handler<K, U> {
+    return new Handler(
+      scan ?? this.scan,
+      value as any ?? this.value,
+      this.opts
+    )
+  }
+
+  required() {
+    return this.derive(
+      (strs) => {
+        let res = this.value(strs)
+        if (res instanceof MatchError) return res
+        if (res == null) return new MatchError(`"${this.opts.activators ?? this.opts.key}" must be specified`)
+        return res as NonNullable<T>
+      }
+    )
+  }
+
+  map<U>(fn: (a: NonNullable<T>) => U) {
+    return this.derive<undefined extends T ? U | undefined : U>(
+      (strs) => {
+        let res = this.value(strs)
+        if (res == null) return undefined as any
+        if (res instanceof MatchError) return res
+        return fn(res as NonNullable<T>)
+      }
+    )
+  }
+
+  repeat() {
+    return this.derive<NonNullable<T>[]>(
+      (strs) => {
+        let res: NonNullable<T>[] = []
+        for (let s of strs) {
+          let sres = this.value([s])
+          if (sres == null) continue
+          if (sres instanceof MatchError) return sres
+          res.push(sres!)
+        }
+        return res
+      },
+      (args, pos, acc) => {
+        let r = this.scan(args, pos, [])
+        if (r instanceof MatchError || r === undefined) return r
+        acc.push(r)
+        return r
+      },
+    )
+  }
 }
 
-export type Merge<T, K extends string, U> = T & {[key in K]: U}
-export type ProbablyString<U> = unknown extends U ? string : U
-
-function is_simple_flag(item: string) {
-  return item[0] === "-" && item[1] !== "-" && item.length > 1
+export function flag<K extends string>(key: K, ...activators: string[]) {
+  if (activators.length === 0) activators = ["--" + key]
+  return new Handler(
+    function (args, pos) {
+      let arg = args[pos]
+      if (activators.includes(args[pos]))
+        return [arg]
+      return undefined
+    },
+    function (id) {
+      if (id.length > 1) return new MatchError(`"${activators}" can only appear once`)
+      return !!id.length
+    },
+    { key, activators }
+  )
 }
 
-export class OptionParser<T = {}> {
-  private handlers: ((inst: T, args: string[], pos: number) => number | undefined)[] = []
-  private builders: ((inst: any) => void)[] = []
-  private post_fns: ((inst: any) => any)[] = []
+export function param<K extends string>(key: K, ...activators: string[]) {
+  if (activators.length === 0) activators = ["--" + key]
+  return new Handler(
+    function (args, pos) {
+      let arg = args[pos]
+      let next = args[pos + 1]
+      if (activators.includes(arg)) {
+        return args.slice(pos, next == undefined || next[0] === "-" ? pos + 1 : pos + 2)
+      }
+      return undefined
+    },
+    function (args) {
+      if (args.length > 1) return new MatchError(`"${activators}" can only appear once`)
+      return args[0]?.[1] as string | undefined
+    },
+    { key, activators },
+  )
+}
 
-  clone<T = this>() {
-    let n = new OptionParser<T>()
-    n.builders = this.builders.slice()
-    n.handlers = this.handlers.slice() as any
-    n.post_fns = this.post_fns.slice()
+export function arg<K extends string>(key: K) {
+  return new Handler(
+    function (args, pos, acc) {
+      if (acc.length > 0 || pos > args.length - 1) return undefined
+      return [args[pos]]
+    },
+    function (args): string | undefined {
+      return args[0]?.[0]
+    },
+    { key },
+  )
+}
+
+export function oneof<K extends string, O extends CliParser<any>[]>(key: K, ...opt: O) {
+  let wm = new WeakMap<string[], { mapres: Map<Handler<any, any>, string[][]>, opt: CliParser<any> }>()
+  return new Handler(
+    function (args, pos) {
+      // let arg = args[pos]
+      let errors: string[] = []
+      for (let o of opt) {
+        let try_res = o.doScan(args, pos)
+        if (try_res instanceof MatchError) {
+          errors.push(try_res.message)
+          continue
+        }
+        let res = args.slice(pos, try_res.pos)
+        wm.set(res, {mapres: try_res.mapres, opt: o })
+        return res
+      }
+      return new MatchError(errors.join(", "))
+    },
+    function (args): optType<O[number]> | undefined | MatchError {
+      if (args.length > 1) throw new Error("?!")
+      if (args.length === 0) return undefined
+      let opt = wm.get(args[0])
+      if (!opt) return undefined // this should never happen !?
+      return opt.opt.doValues(opt.mapres)
+    },
+    { key }
+  )
+}
+
+export function expect<K extends string, K2 extends string>(key: K, value: K2) {
+  return new Handler(
+    function (argv, pos, acc) {
+      let arg = argv[pos]
+      if (acc.length > 0) return undefined
+      if (arg !== value) return new MatchError(`expected "${value}"`)
+      return [arg]
+    },
+    function () {
+      return value as K2
+    },
+    { key }
+  )
+}
+
+/**
+ * Expand the command line to ventilate grouped singe "-" params and "=" parameters
+ * of both "-" and "--" arguments.
+ *
+ * @param argv The original argv
+ * @returns A new, simplified argv
+ */
+export function expand_flags(argv: string[]) {
+  let res: string[] = []
+  for (let arg of argv) {
+    if (arg[0] === "-" && arg[1] !== "-") {
+      for (let i = 1, l = arg.length; i < l; i++) {
+        if (arg[i] === "=") {
+          res.push(arg.slice(i + 1))
+          break
+        } else {
+          res.push("-" + arg[i])
+        }
+      }
+    } else if (arg[0] === "-" && arg[1] === "-" && arg.includes("=")) {
+      let first = arg.search("=")
+      res.push(arg.slice(0, first))
+      res.push(arg.slice(first + 1))
+    } else {
+      res.push(arg)
+    }
+  }
+  return res
+}
+
+///////////
+
+
+export class CliParser<T = {}> {
+  private handlers: Handler<any, any>[] = []
+  private _prelude: string = ""
+  private _epilogue: string = ""
+
+  prelude(pre: string) { this._prelude = pre; return this }
+  epilogue(epi: string) { this._epilogue = epi; return this }
+
+  clone<U = T>(): CliParser<U> {
+    let n = new CliParser<U>()
+    n._prelude = this._prelude
+    n._epilogue = this._epilogue
+    n.handlers = this.handlers.slice()
     return n
   }
 
-  prebuild(): T {
-    let res = {} as T
-    for (let b of this.builders) b(res)
-    return res
-  }
-
-  include<U>(other: OptionParser<U>) {
+  include<U>(other: CliParser<U>) {
     let n = this.clone<T & U>()
-    n.builders = [...this.builders, ...other.builders]
-    n.handlers = [...this.handlers, ...other.handlers]
-    n.post_fns = [...this.post_fns, ...other.post_fns]
+    n.handlers.push(...other.handlers)
     return n
   }
 
-  flag<K extends string>(key: K, opts: FlagOpts<void>) {
-    let n = this.clone<Merge<T, K, number>>()
-    let short = opts.short
-    let long = opts?.long ? '--' + opts?.long : ''
-
-    if (opts.post)
-      n.post_fns.push(opts.post)
-    n.builders.push(function (obj) { obj[key] = 0 })
-    n.handlers.push(function flag(inst, args, pos) {
-      let arg = args[pos]
-      if (arg[0] !== "-") return undefined // not a flag, not handled.
-
-      // If it is a simple flag, then count its occurences
-      if (is_simple_flag(arg) && arg.includes(short)) {
-        for (let i = 0, l = arg.length; i < l; i++) {
-          if (arg[i] === short)
-            inst[key]++
-        }
-        return pos // do not move, other flags may trigger
-      }
-
-      if (arg === long) {
-        inst[key]++
-        return pos + 1
-      }
-
-      return undefined // not found, not handled.
-    })
-
-    return n
-  }
-
-  option<K extends string, U, F extends FlagOpts<U>>(key: K, opts: F):
-    OptionParser<Merge<T, K,
-      undefined extends F["repeating"] ?
-        (undefined extends F["default"] ? ProbablyString<U> | undefined : ProbablyString<U>)
-      : (undefined extends F["default"] ? ProbablyString<U> | undefined : ProbablyString<U>)[]
-    >>
-  {
-    let n = this.clone<any>()
-
-    let short = "-" + opts.short
-    let long = opts?.long ? `--${opts.long}` : null
-    let repeating = opts.repeating
-    let found = Symbol("found-" + key)
-
-    if (opts.post)
-      n.post_fns.push(opts.post)
-    let def = opts.default
-    if (def) {
-      n.builders.push(function (inst) { inst[key] = def })
+  add_handler<H extends (Handler<any, any> | CliParser<any>)[]>(...hld: H): CliParser<T & total_result<H>> {
+    let n = this.clone<T & total_result<H> >()
+    for (let h of hld) {
+      if (h instanceof Handler)
+        n.handlers.push(h)
+      else n.handlers.push(...h.handlers)
     }
-    if (repeating) {
-      n.builders.push(function (inst) { inst[key] = [] })
+    return n
+  }
+
+  show_help() {
+    console.error(`Usage: this [params]`)
+  }
+
+  /** doScan returns */
+  doScan(args: string[], pos: number) {
+    let mapres = new Map<Handler<any, any>, string[][]>()
+    for (let h of this.handlers) {
+      mapres.set(h, [])
     }
 
-    n.handlers.push(function option(inst, args, pos) {
-      let arg = args[pos]
-      if (!repeating && inst[found] || pos >= args.length - 1) return undefined
-
-      let value: string | null = null
-      let advance: undefined | number
-      if (arg === short || arg === long) {
-        value = args[pos + 1]
-        advance = pos + 2
-      } else if (arg.startsWith(short + "=")) {
-        value = arg.slice(3)
-        advance = pos + 1
-      } else if (arg.startsWith(long + "=")) {
-        value = arg.slice(long!.length + 1)
-        advance = pos + 1
-      } else {
-        // not handled
-        return undefined
-      }
-
-      if (opts.transform)
-        value = opts.transform(value) as any
-      if (repeating)
-        inst[key].push(value)
-      else
-        inst[key] = value
-      return advance
-    })
-
-    return n
-  }
-
-  arg<K extends string>(key: K): OptionParser<T & {[key in K]: string}> {
-    let found = Symbol('found-' + key)
-    this.handlers.push(function arg(inst: any, args, pos) {
-      let arg = args[pos]
-      if (inst[found] || arg[0] === "-") return undefined
-      inst[key] = arg
-      Object.defineProperty(inst, found, { enumerable: false, value: true })
-      return pos + 1
-    })
-    return this as any
-  }
-
-  sub<K extends string, V>(key: K, kls: OptionParser<V>): OptionParser<T & {[key in K]: V[]}> {
-    this.builders.push(function (i: any) { i[key] = [] })
-    this.handlers.push(function group(inst: any, args, pos) {
-      if (args[pos][0] === "-") return undefined // can't start on options ?
-      inst[key] = inst[key] ?? []
-      let subres = kls.prebuild()
-      let res = kls.doParse(subres, args, pos)
-      inst[key].push(subres)
-      return res
-    })
-    return this as any
-  }
-
-  post<U>(fn: (t: T) => U): U extends void | Promise<void> ? OptionParser<T> : OptionParser<U> {
-    this.post_fns.push(fn)
-    return this as any
-  }
-
-  private doParse(inst: T, args: string[], pos: number) {
     let l = args.length
+    let init = pos
     scanargs: while (pos < l) {
-      let at_least_one = false
-      handlers: for (let h of this.handlers) {
-        let res = h(inst, args, pos)
-        if (typeof res === 'number') {
-          if (res > pos) {
-            pos = res
-            continue scanargs
-          } else {
-            at_least_one = true
-            continue handlers
-          }
-        }
+      if (args[pos] === "--help" || args[pos] === "-h") {
+        this.show_help()
+        process.exit(0)
+      }
+      for (let h of this.handlers) {
+        let acc = mapres.get(h)!
+        let res = h.scan(args, pos, acc)
+        if (res instanceof MatchError) return res
+        if (res == undefined) continue
+        pos += res.length
+        acc.push(res)
+        continue scanargs
       }
 
-      if (!at_least_one)
-        break
-      pos++
+      break
     }
-    return pos
+
+    if (pos === init && pos < args.length) return new MatchError("nothing was consumed")
+
+    return {pos, mapres}
   }
 
-  parse(args: string[] = process.argv.slice(2)): T {
-    let res = this.prebuild()
-    let pos = this.doParse(res, args, 0)
-
-    if (pos !== args.length) {
-      throw new Error(`leftovers: ${args.slice(pos).join(' ')}`)
+  doValues(mapres: Map<Handler<any, any>, string[][]>) {
+    let res: any = {}
+    for (let h of this.handlers) {
+      let r = h.value(mapres.get(h) ?? [])
+      if (r instanceof MatchError) return r
+      res[h.opts.key] = r
     }
 
-    for (let post of this.post_fns) {
-      let rpost = post(res)
-      if (rpost != null) res = rpost
+    return res as T
+  }
+
+  parse(args: string[] = expand_flags(process.argv.slice(2))): T {
+    let r = this.doScan(args, 0)
+
+    if (r instanceof MatchError) throw new Error("match error: " + r.message)
+
+    if (r.pos !== args.length) {
+      console.error("unrecognized argument", `'${args[r.pos]}'`)
+      this.show_help()
+      process.exit(1)
     }
-    return res
+
+    let r2 = this.doValues(r.mapres)
+    if (r2 instanceof MatchError) throw new Error("match error: " + r2.message)
+    return r2
   }
 }
 
-export function optparser() { return new OptionParser() }
+export function optparser<H extends (Handler<any, any> | CliParser<any>)[]>(...h: H): CliParser<total_result<H>> {
+  let o = new CliParser()
+  return o.add_handler(...h)
+}

@@ -1,21 +1,21 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log2, emit, source, optparser, default_opts, file, } from "../index"
+import { arg, oneof, optparser } from "../optparse"
+import { log2, emit, source, default_opts, file, default_col_sql_src_opts } from "../index"
 import * as DB from "better-sqlite3"
 
-let src_parser = optparser()
-  .arg("name")
-  .option("query", {short: "q", long: "query"})
+let src_parser = optparser(
+  default_col_sql_src_opts,
+)
 
-let opt_parser = optparser()
-  .arg("file")
-  .include(default_opts)
-  .sub("collections", src_parser)
-  .post(opts => {
-    if (!opts.file) throw new Error("sqlite source expects a file name")
-  })
+let opt_parser = optparser(
+  arg("file").required(),
+  default_opts,
+  oneof("collections", src_parser).repeat(),
+).prelude("Output collections to an SWL pipeline from an sqlite database")
 
 let opts = opt_parser.parse()
+
 
 source(() => {
   let db = new DB(opts.file, {readonly: true, fileMustExist: true})
@@ -28,11 +28,7 @@ source(() => {
     const st = db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`)
       .pluck()
 
-    sources = st.all().map((name: string) => {
-      let res = src_parser.prebuild()
-      res.name = name
-      return res
-    })
+    sources = st.all().map((name: string) => ({name, query: undefined}))
   }
 
   for (var source of sources) {
