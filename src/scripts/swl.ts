@@ -16,22 +16,22 @@ class AliasMap {
 }
 
 let alias = new AliasMap()
-  .add(_("pg-src"), _("pg-sink"), "pg")
+  .add(_("pg-src"),     _("pg-sink"),     "pg")
   .add(_("sqlite-src"), _("sqlite-sink"), "sqlite")
-  .add(_("xlsx-src"), _("xlsx-sink"), "xls", "xlsx")
-  .add(_("yaml-src"), _("yaml-sink"), "yaml", "yml")
-  .add(null, _("flatten"), "flatten")
-  .add(null, _("unflatten"), "unflatten")
-  .add(null, _("coerce"), "coerce")
-  .add(null, _("uncoerce"), "uncoerce")
+  .add(_("xlsx-src"),   _("xlsx-sink"),   "xl", "xls", "xlsx")
+  .add(_("yaml-src"),   _("yaml-sink"),   "yaml", "yml")
+  .add(null,            _("flatten"),     "flatten")
+  .add(null,            _("unflatten"),   "unflatten")
+  .add(null,            _("coerce"),      "coerce")
+  .add(null,            _("uncoerce"),    "uncoerce")
 
 let file_extensions = new AliasMap()
   .add(_("sqlite-src"), _("sqlite-sink"), ".db", ".sqlite")
-  .add(_("xlsx-src"), _("xlsx-sink"), ".xlsx", ".ods", ".xlsb", ".xls", '.xlsm')
-  .add(_("yaml-src"), _("yaml-sink"), ".yaml", ".yml")
+  .add(_("xlsx-src"),   _("xlsx-sink"),   ".xlsx", ".ods", ".xlsb", ".xls", '.xlsm')
+  .add(_("yaml-src"),   _("yaml-sink"),   ".yaml", ".yml")
 
 let protocols = new AliasMap()
-  .add(_("pg-src"), _("pg-sink"), "postgres://")
+  .add(_("pg-src"),     _("pg-sink"), "postgres://")
   // add mysql
   // add mssql
   // add oracle
@@ -40,9 +40,14 @@ let protocols = new AliasMap()
 let start = performance.now()
 get_commands().then(c => {
   try {
-    execSync(c, { stdio: "inherit" })
+    execSync(c, { stdio: "inherit", env: {
+      SWL_CHILD: "child",
+    } })
     let end = performance.now()
-    log("done in", col_num(Math.round(end - start)) + "ms",)
+
+    if (!process.env.SWL_CHILD)
+      log("done in", col_num(Math.round(end - start)) + "ms",)
+
   } catch (e) {
     process.exit(e.status)
   }
