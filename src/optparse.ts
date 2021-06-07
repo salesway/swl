@@ -17,8 +17,6 @@
 
 
 type unionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never;
-type key<H> = H extends Handler<infer K, any> ? K : never
-type res<H> = H extends Handler<any, infer R> ? R : never
 
 type total_result<H extends (Handler<any, any> | CliParser<any>)[]> =
   unionToIntersection<{
@@ -95,6 +93,16 @@ export class Handler<K extends string, T> {
     )
   }
 
+  default(v: NonNullable<T>) {
+    return this.derive<NonNullable<T>>(
+      strs => {
+        let res = this.value(strs)
+        if (res == null) return v
+        return res as NonNullable<T>
+      }
+    )
+  }
+
   repeat() {
     return this.derive<NonNullable<T>[]>(
       (strs) => {
@@ -117,40 +125,48 @@ export class Handler<K extends string, T> {
   }
 }
 
-export function flag<K extends string>(key: K, ...activators: string[]) {
-  if (activators.length === 0) activators = ["--" + key]
-  return new Handler(
-    function (args, pos) {
-      let arg = args[pos]
-      if (activators.includes(args[pos]))
-        return [arg]
-      return undefined
-    },
-    function (id) {
-      if (id.length > 1) return new MatchError(`"${activators}" can only appear once`)
-      return !!id.length
-    },
-    { key, activators }
-  )
+export function flag(...activators: string[]) {
+  return {
+    as<K extends string>(key: K) {
+      if (activators.length === 0) activators = ["--" + key]
+      return new Handler(
+        function (args, pos) {
+          let arg = args[pos]
+          if (activators.includes(args[pos]))
+            return [arg]
+          return undefined
+        },
+        function (id) {
+          if (id.length > 1) return new MatchError(`"${activators}" can only appear once`)
+          return !!id.length
+        },
+        { key, activators }
+      )
+    }
+  }
 }
 
-export function param<K extends string>(key: K, ...activators: string[]) {
-  if (activators.length === 0) activators = ["--" + key]
-  return new Handler(
-    function (args, pos) {
-      let arg = args[pos]
-      let next = args[pos + 1]
-      if (activators.includes(arg)) {
-        return args.slice(pos, next == undefined || next[0] === "-" ? pos + 1 : pos + 2)
-      }
-      return undefined
-    },
-    function (args) {
-      if (args.length > 1) return new MatchError(`"${activators}" can only appear once`)
-      return args[0]?.[1] as string | undefined
-    },
-    { key, activators },
-  )
+export function param(...activators: string[]) {
+  return {
+    as<K extends string>(key: K) {
+      if (activators.length === 0) activators = ["--" + key]
+      return new Handler(
+        function (args, pos) {
+          let arg = args[pos]
+          let next = args[pos + 1]
+          if (activators.includes(arg)) {
+            return args.slice(pos, next == undefined || next[0] === "-" ? pos + 1 : pos + 2)
+          }
+          return undefined
+        },
+        function (args) {
+          if (args.length > 1) return new MatchError(`"${activators}" can only appear once`)
+          return args[0]?.[1] as string | undefined
+        },
+        { key, activators },
+      )
+    }
+  }
 }
 
 export function arg<K extends string>(key: K) {
@@ -166,48 +182,56 @@ export function arg<K extends string>(key: K) {
   )
 }
 
-export function oneof<K extends string, O extends CliParser<any>[]>(key: K, ...opt: O) {
-  let wm = new WeakMap<string[], { mapres: Map<Handler<any, any>, string[][]>, opt: CliParser<any> }>()
-  return new Handler(
-    function (args, pos) {
-      // let arg = args[pos]
-      let errors: string[] = []
-      for (let o of opt) {
-        let try_res = o.doScan(args, pos)
-        if (try_res instanceof MatchError) {
-          errors.push(try_res.message)
-          continue
-        }
-        let res = args.slice(pos, try_res.pos)
-        wm.set(res, {mapres: try_res.mapres, opt: o })
-        return res
-      }
-      return new MatchError(errors.join(", "))
-    },
-    function (args): optType<O[number]> | undefined | MatchError {
-      if (args.length > 1) throw new Error("?!")
-      if (args.length === 0) return undefined
-      let opt = wm.get(args[0])
-      if (!opt) return undefined // this should never happen !?
-      return opt.opt.doValues(opt.mapres)
-    },
-    { key }
-  )
+export function oneof<O extends CliParser<any>[]>(...opt: O) {
+  return {
+    as<K extends string>(key: K) {
+      let wm = new WeakMap<string[], { mapres: Map<Handler<any, any>, string[][]>, opt: CliParser<any> }>()
+      return new Handler(
+        function (args, pos) {
+          // let arg = args[pos]
+          let errors: string[] = []
+          for (let o of opt) {
+            let try_res = o.doScan(args, pos)
+            if (try_res instanceof MatchError) {
+              errors.push(try_res.message)
+              continue
+            }
+            let res = args.slice(pos, try_res.pos)
+            wm.set(res, {mapres: try_res.mapres, opt: o })
+            return res
+          }
+          return new MatchError(errors.join(", "))
+        },
+        function (args): optType<O[number]> | undefined | MatchError {
+          if (args.length > 1) throw new Error("?!")
+          if (args.length === 0) return undefined
+          let opt = wm.get(args[0])
+          if (!opt) return undefined // this should never happen !?
+          return opt.opt.doValues(opt.mapres)
+        },
+        { key }
+      )
+    }
+  }
 }
 
-export function expect<K extends string, K2 extends string>(key: K, value: K2) {
-  return new Handler(
-    function (argv, pos, acc) {
-      let arg = argv[pos]
-      if (acc.length > 0) return undefined
-      if (arg !== value) return new MatchError(`expected "${value}"`)
-      return [arg]
-    },
-    function () {
-      return value as K2
-    },
-    { key }
-  )
+export function expect<K2 extends string>(value: K2) {
+  return {
+    as<K extends string>(key: K) {
+      return new Handler(
+        function (argv, pos, acc) {
+          let arg = argv[pos]
+          if (acc.length > 0) return undefined
+          if (arg !== value) return new MatchError(`expected "${value}"`)
+          return [arg]
+        },
+        function () {
+          return value as K2
+        },
+        { key }
+      )
+    }
+  }
 }
 
 /**

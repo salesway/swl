@@ -1,44 +1,48 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { CollectionHandler, log, optparser, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts } from '../index'
+import { CollectionHandler, log, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts } from '../index'
+import { optparser, arg, flag, param, oneof } from "../optparse"
 
 import { Client as PgClient, types } from 'pg'
 import { from as copy_from } from 'pg-copy-streams'
 
-let col_parser = optparser()
-  .arg("name")
-  .flag("table_name", { short: "n", long: "table-name", help: "Specify a different table name than the collection name" })
-  .flag("auto_create", { short: "a", long: "auto-create", help: "Create table if it didn't exist" })
-  .flag("truncate", {short: "t", long: "truncate"})
-  .flag("drop", {short: "d", long: "drop"})
-  .flag("upsert", {short: "u", long: "upsert"})
+let col_options = optparser(
+  flag("-n", "--table-name").as("table_name").help("Specify a different table name than the collection name"),
+  flag("-a", "--auto-create").as("auto_create").help("Create table if it didn't exist"),
+  flag("-t", "--truncate").as("truncate"),
+  flag("-d", "--drop").as("drop"),
+  flag("-u", "--upsert").as("upsert"),
+)
 
-let opts_parser = optparser()
-  .arg("uri")
-  .include(default_opts)
-  .flag("auto_create", { short: "a", long: "auto-create", help: "Create table if they didn't exist" })
-  .flag("drop", {short: "d", long: "drop"})
-  .flag("upsert", {short: "u", long: "upsert"})
-  .flag("truncate", {short: "t", long: "truncate", help: "Always truncate tables before inserting data"})
+let col_parser = optparser(
+  arg("name"),
+  col_options
+)
 
-  .flag("disable_triggers", { short: "t", long: "disable-triggers", help: "Disable triggers before loading data" })
-  .flag("notice", { short: "n", long: "notice", help: "Display NOTICE statements" })
-  .flag("notify", { short: "y", long: "notify", help: "Display LISTEN/NOTIFY requests" })
-  .flag("ignore_nonexisting", { short: "i", long: "ignore-non-existing", help: "Ignore tables that don't exist"})
-  .option("schema", { short: "s", long: "schema", default: "public" })
-  .flag("passthrough", {short: "p", long: "passthrough", help: "Forward all data to the next pipe"})
-  .sub("collections", col_parser)
-  .post(opts => {
-    for (let c of opts.collections) {
-      if (opts.truncate) c.truncate = 1
-      if (opts.drop) c.drop = 1
-      if (opts.upsert) c.upsert = 1
-    }
+let opts_parser = optparser(
+  arg("uri").required(),
+  default_opts,
+  col_options,
 
-    if (!opts.uri) throw new Error("pg-sink expects a URI")
-  })
+  flag("-t", "--disable-triggers").as("disable_triggers").help("Disable triggers before loading data"),
+  flag("-n", "--notice").as("notice").help("Display NOTICE statements"),
+  flag("-y", "--notify").as("notify").help("Display LISTEN/NOTIFY requests"),
+  flag("-i", "--ignore-non-existing").as("ignore_nonexisting").help("Ignore tables that don't exist"),
+  param("-s", "--schema").as("schema").default("public").help("Default schema to analyze when no collections specified"),
+  flag("-p", "--passthrough").as("passthrough").help("Forward all data to the next pipe"),
+  oneof(col_parser).as("collections").repeat(),
+)
+
 
 let opts = opts_parser.parse()
+
+for (let c of opts.collections) {
+  if (opts.truncate) c.truncate = true
+  if (opts.drop) c.drop = true
+  if (opts.upsert) c.upsert = true
+  if (opts.auto_create) c.auto_create = true
+}
+
 
 // Date type, don't remember if this is essential or not.
 types.setTypeParser(1082, val => {

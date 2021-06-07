@@ -421,13 +421,13 @@ import { optparser, param, flag, arg } from "./optparse"
 
 
 export const default_opts = optparser(
-  param("alias", "-a", "--alias")
+  param("-a", "--alias").as("alias")
     .help("give another name to this component in the pipe")
     .map(alias => {
       self_name = col_alias("(" + alias + ") ") + self_name
       return alias
     }),
-  flag("verbose", "-v", "--verbose")
+  flag("-v", "--verbose").as("verbose")
     .repeat()
     .map(vb => {
       let verb = vb.length
@@ -443,4 +443,4 @@ export const default_col_src_opts = optparser(
 )
 
 export const default_col_sql_src_opts = default_col_src_opts.clone()
-  .add_handler(param("query", "-q", "--query"))
+  .add_handler(param("-q", "--query").as("query"))

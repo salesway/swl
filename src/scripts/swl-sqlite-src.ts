@@ -11,7 +11,7 @@ let src_parser = optparser(
 let opt_parser = optparser(
   arg("file").required(),
   default_opts,
-  oneof("collections", src_parser).repeat(),
+  oneof(src_parser).as("collections").repeat(),
 ).prelude("Output collections to an SWL pipeline from an sqlite database")
 
 let opts = opt_parser.parse()
