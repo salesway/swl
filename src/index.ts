@@ -208,7 +208,7 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
   let collection: Collection | null = null
   let _count = 0
 
-  if (sink.passthrough) handler.passthrough = true
+  // if (sink.passthrough) handler.passthrough = true
 
   if (tty.isatty(0)) throw new Error(`a sink needs an input`)
   let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
@@ -412,9 +412,10 @@ export class Lock<T> {
   }
 }
 
-export let log1 = (...a: any[]) => { }
-export let log2 = (...a: any[]) => { }
-export let log3 = (...a: any[]) => { }
+const swl_verbose = parseInt(process.env.SWL_VERBOSE ?? "")
+export let log1 = swl_verbose >= 1 ? log : (...a: any[]) => { }
+export let log2 = swl_verbose >= 2 ? log : (...a: any[]) => { }
+export let log3 = swl_verbose >= 3 ? log : (...a: any[]) => { }
 
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -437,7 +438,7 @@ export const default_opts = optparser(
   flag("-v", "--verbose").as("verbose")
     .repeat()
     .map(vb => {
-      let verb = vb.length
+      let verb = Math.max(swl_verbose, vb.length)
       if (verb >= 1) log1 = log
       if (verb >= 2) log2 = log
       if (verb >= 3) log3 = log

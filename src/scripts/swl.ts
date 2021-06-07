@@ -6,6 +6,8 @@ import { execSync } from "child_process"
 import { performance } from "perf_hooks"
 import { col_num, log } from "../index"
 
+import { optparser, flag, param } from "../optparse"
+
 class AliasMap {
   map = new Map<string, {source: string | null, sink: string | null}>()
 
@@ -38,10 +40,34 @@ let protocols = new AliasMap()
 
 
 let start = performance.now()
-get_commands().then(c => {
+let pre_flags: string[] = []
+let cmd = process.argv.slice(2)
+{
+  while (cmd[0]?.[0] === "-") {
+    pre_flags.push(cmd.shift()!)
+  }
+}
+
+let verbose: undefined | number = process.env.SWL_VERBOSE ? parseInt(process.env.SWL_VERBOSE) : undefined
+const opts = optparser(
+  flag("-v", "--verbose").as("verbose").repeat().map(v => {
+    if (verbose == null)
+      verbose = v.length
+  }),
+  param("-h", "--help").as("help"),
+).parse(pre_flags)
+
+if (opts.help) {
+  console.error("Usage: swl ...")
+  process.exit(0)
+}
+
+get_commands(cmd).then(c => {
   try {
     execSync(c, { stdio: "inherit", env: {
+      ...process.env,
       SWL_CHILD: "child",
+      SWL_VERBOSE: verbose != null ? "" + verbose : undefined,
     } })
     let end = performance.now()
 
@@ -91,12 +117,12 @@ async function figure_out_who(item: string, source: boolean): Promise<string[]> 
   return [item]
 }
 
-async function get_commands() {
+async function get_commands(cmd: string[]) {
   let commands: {command: string[], source: boolean}[] = []
   {
     let command: string[] = []
     commands.push({source: true, command})
-    for (let item of process.argv.slice(2)) {
+    for (let item of cmd) {
       if (item === "::") {
         // Special case if the command starts with :: to mean we *do* want to begin
         // with a sink, eg. if we're running the command over ssh.

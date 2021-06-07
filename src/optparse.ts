@@ -313,10 +313,6 @@ export class CliParser<T = {}> {
     let l = args.length
     let init = pos
     scanargs: while (pos < l) {
-      if (args[pos] === "--help" || args[pos] === "-h") {
-        this.show_help()
-        process.exit(0)
-      }
       for (let h of this.handlers) {
         let acc = mapres.get(h)!
         let res = h.scan(args, pos, acc)
@@ -346,7 +342,8 @@ export class CliParser<T = {}> {
     return res as T
   }
 
-  parse(args: string[] = expand_flags(process.argv.slice(2))): T {
+  parse(args: string[] = process.argv.slice(2)): T {
+    args = expand_flags(args)
     let r = this.doScan(args, 0)
 
     if (r instanceof MatchError) throw new Error("match error: " + r.message)
