@@ -93,7 +93,7 @@ sink(async () => {
       log2("commited changes")
     },
     async finally() {
-      log2("cisconnecting from database")
+      log2("disconnecting from database")
       await db.end()
       await open.tunnel?.close()
     }
