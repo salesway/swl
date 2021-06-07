@@ -198,6 +198,8 @@ export interface Sink {
   passthrough?: boolean
 }
 
+let passthrough = false
+
 export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
 
   let handler = typeof _handler === "function" ? await _handler() : _handler
@@ -208,7 +210,7 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
   let collection: Collection | null = null
   let _count = 0
 
-  // if (sink.passthrough) handler.passthrough = true
+  if (passthrough) handler.passthrough = true
 
   if (tty.isatty(0)) throw new Error(`a sink needs an input`)
   let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
@@ -223,36 +225,39 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
   while ((read = reader.next())) {
     let type = read.type
 
+    let chk: Chunk = v8.deserialize(read.view)
+
     if (handler.passthrough) {
-      emit.write_packet(type, read.view)
+      // NOTE: passthrough should probably be revamped so that some sink could turn it off or on as needed
+      // if they do not want to process some collections, and debug output should not force reinterpretation
+      // of the object to v8.serialize as it was just deserialized and just needs to be forwarded again.
+      emit.chunk(type, chk)
     }
 
-    let chunk: Chunk = v8.deserialize(read.view)
-
     // Now that the next packet is read, dispatch it to the correct method
-    if (chunk_is_collection(type, chunk)) {
+    if (chunk_is_collection(type, chk)) {
       if (collection_handler) {
         await end_collection()
       }
-      collection = chunk
-      collection_name = chunk.name
-    } else if (chunk_is_data(type, chunk)) {
+      collection = chk
+      collection_name = chk.name
+    } else if (chunk_is_data(type, chk)) {
       _count++
-      let data = chunk
+      let data = chk
       if (collection) {
         collection_handler = await handler.collection(collection, data)
         collection = null
       }
-      await collection_handler!.data(chunk)
-    } else if (chunk_is_message(type, chunk)) {
-      await handler.message?.(chunk)
-    } else if (chunk_is_error(type, chunk)) {
+      await collection_handler!.data(chk)
+    } else if (chunk_is_message(type, chk)) {
+      await handler.message?.(chk)
+    } else if (chunk_is_error(type, chk)) {
       // error will kill the current stream
       // and stop any processing
       if (handler.error) {
-        await handler.error(chunk)
+        await handler.error(chk)
       }
-      report_error(chunk)
+      report_error(chk)
       await handler.finally?.()
       return
     }
@@ -274,8 +279,6 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
   await handler.end()
   await handler.finally?.()
 }
-
-sink.passthrough = false
 
 
 // The current executable name, used in target: when passing commands and messages.
@@ -427,7 +430,7 @@ import { optparser, param, flag, arg } from "./optparse"
 
 export const default_opts = optparser(
   flag("-p", "--passthrough").as("passthrough").map(p => {
-    sink.passthrough = true
+    if (p) passthrough = true
   }),
   param("-a", "--alias").as("alias")
     .help("give another name to this component in the pipe")
