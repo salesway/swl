@@ -1,12 +1,16 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { sink, optparser } from "../index"
+import { default_opts, sink } from "../index"
 import { utils, writeFile } from "xlsx"
 
-let opts = optparser()
-  .arg("file")
-  .flag("passthrough", {short: "p", long: "passthrough", help: "Let data flow to the next element"})
-  .flag("compression", {short: "c", long: "compression", help: "Enable database compression"})
+import { arg, flag, optparser } from "../optparse"
+
+
+let opts = optparser(
+  arg("file").required(),
+  default_opts,
+  flag("-c", "--compress").as("compression").help("Enable XLSX compression"),
+)
   .parse()
 
 if (!opts.file) throw new Error(`xlsx needs a file argument`)

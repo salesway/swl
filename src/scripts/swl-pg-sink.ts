@@ -29,7 +29,6 @@ let opts_parser = optparser(
   flag("-y", "--notify").as("notify").help("Display LISTEN/NOTIFY requests"),
   flag("-i", "--ignore-non-existing").as("ignore_nonexisting").help("Ignore tables that don't exist"),
   param("-s", "--schema").as("schema").default("public").help("Default schema to analyze when no collections specified"),
-  flag("-p", "--passthrough").as("passthrough").help("Forward all data to the next pipe"),
   oneof(col_parser).as("collections").repeat(),
 )
 
@@ -59,7 +58,6 @@ sink(async () => {
   let db = new PgClient(uri)
 
   return {
-    passthrough: !!opts.passthrough,
 
     // Setup the database and some global options, such as displaying notices
     async init() {

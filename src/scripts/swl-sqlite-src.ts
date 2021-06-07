@@ -37,11 +37,8 @@ source(() => {
     var stmt = db.prepare(sql)
 
     emit.collection(source.name)
-    // this.info(`Started ${colname}`)
     var iterator = (stmt as any).iterate() as IterableIterator<any>
-    let count = 0
     for (var s of iterator) {
-      count++
       emit.data(s)
     }
   }

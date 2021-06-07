@@ -2,22 +2,26 @@
 
 import { Client as PgClient } from 'pg'
 
-import { default_opts, emit, log1, optparser, source, uri_maybe_open_tunnel, col_src } from '../index'
+import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src } from '../index'
+import { optparser, arg, param, oneof } from "../optparse"
 
 
-const opts = optparser()
-  .include(default_opts)
-  .arg("uri")
-  .option("schema", { short: "s", help: "schema from which get", default: "public" })
-  .sub("sources", optparser()
-    .arg("name")
-    .option("query", { short: "q", help: "query" })
-  )
-  .post(opts => {
-    if (!opts.uri) throw new Error(`pg source expects an uri`)
-  })
-  .parse()
+const opts_src = optparser(
+  arg("name").required(),
+  param("-q", "--query").as("query"),
+)
 
+const opts = optparser(
+  default_opts,
+  arg("uri").required(),
+  param("-s", "--schema").as("schema").default("public"),
+  oneof(opts_src).as("sources").repeat(),
+).parse()
+
+
+/**
+ *
+ */
 source(async function pg_source() {
   let open = await uri_maybe_open_tunnel(opts.uri)
   let uri = open.uri.startsWith("postgres://") ? open.uri : `postgres://${open.uri}`

@@ -1,21 +1,29 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { source, optparser, emit } from "../index"
+import { source, emit } from "../index"
+import { arg, oneof, optparser, param } from "../optparse"
+
 import { readFile } from "xlsx"
 
-let opts = optparser()
-  .arg("file")
-  .sub("collections", optparser()
-    .arg("name")
-    .option("rename", {short: "r", long: "rename", help: "Rename this collection"})
-  )
-  .post(opts => {
-    return {...opts, sources: opts.collections.reduce((acc, item) => {
-      acc.set(item.name, item)
-      return acc
-    }, new Map<string, typeof opts["collections"][0]>())}
-  })
+let collections_opts = optparser(
+  arg("name").required(),
+  param("-r", "--rename").as("rename").help("Rename this collection"),
+)
+
+let opts_ = optparser(
+  arg("file").required(),
+  oneof(collections_opts).as("collections").repeat(),
+)
   .parse()
+
+let opts = {
+  ...opts_,
+  sources: opts_.collections.reduce((acc, item) => {
+    acc.set(item.name, item)
+    return acc
+  }, new Map<string, typeof opts_["collections"][0]>())
+}
+
 
 if (!opts.file) throw new Error("need a file")
 

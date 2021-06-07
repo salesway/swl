@@ -208,6 +208,8 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
   let collection: Collection | null = null
   let _count = 0
 
+  if (sink.passthrough) handler.passthrough = true
+
   if (tty.isatty(0)) throw new Error(`a sink needs an input`)
   let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
 
@@ -272,6 +274,8 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
   await handler.end()
   await handler.finally?.()
 }
+
+sink.passthrough = false
 
 
 // The current executable name, used in target: when passing commands and messages.
@@ -421,6 +425,9 @@ import { optparser, param, flag, arg } from "./optparse"
 
 
 export const default_opts = optparser(
+  flag("-p", "--passthrough").as("passthrough").map(p => {
+    sink.passthrough = true
+  }),
   param("-a", "--alias").as("alias")
     .help("give another name to this component in the pipe")
     .map(alias => {

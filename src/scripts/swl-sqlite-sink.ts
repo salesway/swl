@@ -1,34 +1,37 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log2, log3, sink, optparser, CollectionHandler, Handler, default_opts, col_table, col_num } from "../index"
+import { log2, log3, sink, CollectionHandler, Sink, default_opts, col_table, col_num } from "../index"
+import { optparser, arg, oneof, flag } from "../optparse"
+
 import * as DB from "better-sqlite3"
 import { file } from "../debug"
 
-let col_parser = optparser()
-  .arg("name")
-  .flag("truncate", {short: "t", long: "truncate"})
-  .flag("drop", {short: "d", long: "drop"})
-  .flag("upsert", {short: "u", long: "upsert"})
+let col_opts = optparser(
+  flag("-t", "--truncate").as("truncate"),
+  flag("-d", "--drop").as("drop"),
+  flag("-u", "--upsert").as("upsert")
+)
 
-let opts_parser = optparser()
-  .arg("file")
-  .include(default_opts)
-  .flag("truncate", {short: "t", long: "truncate"})
-  .flag("drop", {short: "d", long: "drop"})
-  .flag("upsert", {short: "u", long: "upsert"})
-  .flag("passthrough", {short: "p", long: "passthrough"})
-  .sub("collections", col_parser)
-  .post(opts => {
-    for (let c of opts.collections) {
-      if (opts.truncate) c.truncate = 1
-      if (opts.drop) c.drop = 1
-      if (opts.upsert) c.upsert = 1
-    }
+let col_parser = optparser(
+  arg("name").required(),
+  col_opts,
+)
 
-    if (!opts.file) throw new Error("sqlite source expects a file name")
-  })
+let opts_parser = optparser(
+  arg("file").required(),
+  default_opts,
+  col_opts,
+  oneof(col_parser).as("collections").repeat(),
+)
+
 
 let opts = opts_parser.parse()
+
+for (let c of opts.collections) {
+  if (opts.truncate) c.truncate = true
+  if (opts.drop) c.drop = true
+  if (opts.upsert) c.upsert = true
+}
 
 
 function exec(stmt: string) {
@@ -98,10 +101,9 @@ log2("opened file", file(opts.file), "to write")
 // db.pragma("synchronous = 0")
 // db.pragma("locking_mode = EXCLUSIVE")
 
-sink((): Handler => {
+sink((): Sink => {
   db.exec("BEGIN")
   return {
-    passthrough: !!opts.passthrough,
     collection(col, start) {
       return collection_handler(col.name, start)
     },

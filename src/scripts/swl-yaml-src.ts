@@ -8,11 +8,14 @@ import { DEFAULT_SCHEMA, Type, load } from "js-yaml"
 // there are unfortunately no typings for this library
 const all = (require("js-yaml-js-types") as any).all
 
-import { emit, optparser, source } from '../index'
+import { arg, optparser, param } from "../optparse"
+import { default_opts, emit, source } from '../index'
 
-let opts = optparser()
-  .arg("file")
-  .option("encoding", { short: "e", long: "encoding" })
+let opts = optparser(
+  arg("file").required(),
+  param("-e", "--encoding").as("encoding"),
+  default_opts,
+)
   .parse()
 
 source(function () {
