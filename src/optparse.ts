@@ -115,10 +115,9 @@ export class Handler<K extends string, T> {
         }
         return res
       },
-      (args, pos, acc) => {
+      (args, pos) => {
         let r = this.scan(args, pos, [])
         if (r instanceof MatchError || r === undefined) return r
-        acc.push(r)
         return r
       },
     )

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { CollectionHandler, log, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts } from '../index'
+import { CollectionHandler, log, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts, log1 } from '../index'
 import { optparser, arg, flag, param, oneof } from "../optparse"
 
 import { Client as PgClient, types } from 'pg'
@@ -24,7 +24,7 @@ let opts_parser = optparser(
   default_opts,
   col_options,
 
-  flag("-t", "--disable-triggers").as("disable_triggers").help("Disable triggers before loading data"),
+  flag("--disable-triggers").as("disable_triggers").help("Disable triggers before loading data"),
   flag("-n", "--notice").as("notice").help("Display NOTICE statements"),
   flag("-y", "--notify").as("notify").help("Display LISTEN/NOTIFY requests"),
   flag("-i", "--ignore-non-existing").as("ignore_nonexisting").help("Ignore tables that don't exist"),
@@ -79,8 +79,10 @@ sink(async () => {
       }
 
       // Disable triggers
-      if (opts.disable_triggers)
+      if (opts.disable_triggers) {
+        log1("disabling triggers")
         await db.query(/* sql */ `SET session_replication_role = replica;`)
+      }
 
     },
 
@@ -156,6 +158,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
 
   return {
     async data(data) {
+      // console.error(JSON.stringify(data))
       if (!stream.write('@' + JSON.stringify(data).replace(/@/g, '@@') + '@\n')) {
         drain_lock = new Lock()
         await drain_lock.promise

@@ -1,3 +1,6 @@
+/** swl considers that it works in UTC all the time */
+process.env.TZ = "UTC"
+
 import * as v8 from "v8"
 import * as fs from "fs"
 import * as tty from "tty"
