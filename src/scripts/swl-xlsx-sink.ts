@@ -24,6 +24,11 @@ sink(function () {
 
       return {
         data(data) {
+          for (let x in data) {
+            let val = data[x]
+            if (val instanceof Date) data[x] = val.toISOString()
+            else if (val != null && typeof val === "object") data[x] = JSON.stringify(val)
+          }
           all_data.push(data)
         },
         end() {
