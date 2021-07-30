@@ -285,7 +285,7 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
 
 
 // The current executable name, used in target: when passing commands and messages.
-export let self_name: string = path.basename(process.argv[1]).replace(".js", "").replace("swl-", "")
+export let self_name: string = path.basename(process.argv[1] ?? "").replace(".js", "").replace("swl-", "")
 if (self_name.includes("-src"))
   self_name = col_src(self_name.replace("-src", " »"))
 if (self_name.includes("sink"))

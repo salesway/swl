@@ -24,7 +24,6 @@ let opts_parser = optparser(
   oneof(col_parser).as("collections").repeat(),
 )
 
-
 let opts = opts_parser.parse()
 
 for (let c of opts.collections) {
@@ -67,17 +66,24 @@ function collection_handler(name: string, start: any): CollectionHandler {
   if (!opts.upsert) {
     const sql = `INSERT INTO "${table}" (${columns.map(c => `"${c}"`).join(", ")})
     values (${columns.map(c => "?").join(", ")})`
+    // console.error(sql)
     stmt = db.prepare(sql)
   } else if (opts.upsert) {
     // Should I do some sub-query thing with coalesce ?
     // I would need some kind of primary key...
+    // console.error(`INSERT OR REPLACE INTO "${table}" (${columns.map(c => `"${c}"`).join(", ")})
+    // values (${columns.map(c => "?").join(", ")})`)
     stmt = db.prepare(`INSERT OR REPLACE INTO "${table}" (${columns.map(c => `"${c}"`).join(", ")})
       values (${columns.map(c => "?").join(", ")})`)
   }
 
   return {
     data(data) {
-      stmt.run(...columns.map(c => data[c]))
+      stmt.run(...columns.map(c => {
+        let v = data[c]
+        if (v && typeof v === 'object' && !(v instanceof Buffer)) return JSON.stringify(v)
+        return v
+      }))
     },
     end() {
       if (opts.verbose >= 2) {
@@ -87,6 +93,7 @@ function collection_handler(name: string, start: any): CollectionHandler {
     }
   }
 }
+
 
 let db = new DB(opts.file, { fileMustExist: false })
 log2("opened file", file(opts.file), "to write")
