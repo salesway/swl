@@ -81,6 +81,7 @@ function collection_handler(name: string, start: any): CollectionHandler {
     data(data) {
       stmt.run(...columns.map(c => {
         let v = data[c]
+        if (v instanceof Date) return v.toJSON()
         if (v && typeof v === 'object' && !(v instanceof Buffer)) return JSON.stringify(v)
         return v
       }))
