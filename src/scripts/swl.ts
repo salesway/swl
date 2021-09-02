@@ -22,12 +22,14 @@ let alias = new AliasMap()
   .add(_("sqlite-src"), _("sqlite-sink"), "sqlite")
   .add(_("xlsx-src"),   _("xlsx-sink"),   "xl", "xls", "xlsx")
   .add(_("yaml-src"),   _("yaml-sink"),   "yaml", "yml")
+  .add(_("csv-src"),    "csv")
   .add(null,            _("flatten"),     "flatten")
   .add(null,            _("unflatten"),   "unflatten")
   .add(null,            _("coerce"),      "coerce")
   .add(null,            _("uncoerce"),    "uncoerce")
 
 let file_extensions = new AliasMap()
+  .add(_("csv-src"), null, ".csv")
   .add(_("sqlite-src"), _("sqlite-sink"), ".db", ".sqlite")
   .add(_("xlsx-src"),   _("xlsx-sink"),   ".xlsx", ".ods", ".xlsb", ".xls", '.xlsm')
   .add(_("yaml-src"),   _("yaml-sink"),   ".yaml", ".yml")
@@ -153,7 +155,7 @@ async function get_commands(cmd: string[]) {
   }
 
   return builder.map(b => {
-    if (b.includes(" "))
+    if (b.includes(" ") || b.includes(";"))
       b = `"${b.replace("\"", "\\\"")}"`
     return b
   }).join(" ")
