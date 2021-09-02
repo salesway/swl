@@ -17,8 +17,7 @@
     "swl-flatten": "lib/scripts/swl-flatten.js",
     "swl-unflatten": "lib/scripts/swl-unflatten.js",
     "swl-coerce": "lib/scripts/swl-coerce.js",
-    "swl-flatten": "lib/scripts/swl-flatten.js",
-    "swl-unflatten": "lib/scripts/swl-unflatten.js"
+    "swl-csv-src": "lib/scripts/swl-csv-src.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -29,6 +28,7 @@
     "@types/flat": "^5.0.2",
     "better-sqlite3": "^7.4.0",
     "chalk": "^4.1.1",
+    "fast-csv": "^4.3.6",
     "flat": "^5.0.2",
     "get-port": "^5.1.1",
     "js-yaml": "^4.1.0",
@@ -44,7 +44,7 @@
     "@types/chalk": "^2.2.0",
     "@types/get-port": "^4.2.0",
     "@types/js-yaml": "^4.0.1",
-    "@types/node": "^13.9.5",
+    "@types/node": "^16.7.10",
     "@types/pg": "^8.6.0",
     "@types/pg-copy-streams": "^1.2.1",
     "@types/tunnel-ssh": "^4.1.0"

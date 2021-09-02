@@ -70,6 +70,7 @@ var _current_nb = 0
 export function debug(type: ChunkType, chunk: Chunk) {
   if (chunk_is_collection(type, chunk)) {
     _current_collection = chunk.name
+    _current_nb = 0
   } else if (chunk_is_data(type, chunk)) {
     // var d = chunk
     process.stderr.write(`${info(_current_collection)}:${num(++_current_nb)} `)
