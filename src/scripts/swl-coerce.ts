@@ -2,6 +2,20 @@
 
 import { sink, emit } from '../index'
 
+import { optparser, param, } from "../optparse"
+
+const opts_src = optparser(
+  param("-o", "--only-columns").as("only"),
+)
+
+const opts = opts_src.parse()
+
+let only: null | Set<string> = null
+
+if (opts.only) {
+  only = new Set(opts.only.split(/[\n\s]*,[\s\n]*/g))
+}
+
 sink(function () {
   return {
     collection(col) {
@@ -12,7 +26,7 @@ sink(function () {
         data(data) {
           let res: {[name: string]: any} = {}
           for (let x in data) {
-            res[x] = coerce(data[x])
+            res[x] = !only || only.has(x) ? coerce(data[x]) : data[x]
           }
           emit.data(res)
         },

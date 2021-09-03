@@ -91,8 +91,8 @@ export namespace emit {
 
   export const chunk = tty.isatty(out) ? debug : write_chunk
 
-  let _count = 0
-  let _current: string | null = null
+  export let _count = 0
+  export let _current: string | null = null
   export function data(data: Data) {
     _count++
     chunk(ChunkType.Data, data)
