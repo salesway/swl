@@ -5,7 +5,8 @@ import { optparser, param, flag } from "../optparse"
 
 const opts_src = optparser(
   param("-o", "--only-columns").as("only"),
-  param("-e", "--execpt").as("except"),
+  param("-e", "--except").as("except"),
+  flag("-b", "--boolean").as("booleans"),
   flag("-t", "--trim").as("trim"),
   flag("-n", "--empty-is-null").as("null")
 )
@@ -36,7 +37,7 @@ sink(function () {
           for (let x in data) {
             let dt = data[x]
             res[x] = (!only || only.has(x)) && (!except || !except.has(x)) ?
-              (coerce_null && dt === "" ? null : uncoerce(dt))
+              uncoerce(dt)
             : dt
           }
           emit.data(res)
@@ -54,6 +55,7 @@ const re_date = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?:\d{2}(?:\.\d{3}Z?)))?$/i
 const re_number = /^\d+(\.\d+)?$/i
 const re_boolean = /^true|false$/i
 const re_default_null = /^null$/i
+const nulls = opts.null
 
 export function uncoerce(value: any) {
   if (value && (value[0] === '{' || value[0] === '[')) {
@@ -67,11 +69,13 @@ export function uncoerce(value: any) {
   if (typeof value === 'string') {
     var trimmed = value.trim()
 
+    if (nulls && trimmed === "") return null
+
     if (trimmed.match(re_date)) {
       return new Date(trimmed)
     }
 
-    if (trimmed.match(re_boolean)) {
+    if (opts.booleans && trimmed.match(re_boolean)) {
       return trimmed.toLowerCase() === 'true'
     }
 

@@ -105,8 +105,9 @@ log2("opened file", file(opts.file), "to write")
 // let journal_mode = db.pragma("journal_mode")
 // let synchronous = db.pragma("synchronous")
 // let locking_mode = db.pragma("locking_mode")
-// db.pragma("journal_mode = off")
-// db.pragma("synchronous = 0")
+// db.pragma("journal_mode = wal")
+db.pragma("journal_mode = wal")
+db.pragma("synchronous = 0")
 // db.pragma("locking_mode = EXCLUSIVE")
 
 sink((): Sink => {

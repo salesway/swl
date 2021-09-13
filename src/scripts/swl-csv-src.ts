@@ -12,6 +12,7 @@ const opts_src = optparser(
   param("-e", "--escape").as("escape"),
   param("-h", "--headers").as("headers").default(""),
   param("-c", "--collection").as("collection"),
+  param("-m", "--merge").as("merge").help("Add null columns"),
   flag("-s", "--simplify-headers").as("simplify_headers"),
   arg("files").required().repeat(),
 )
@@ -40,17 +41,22 @@ source(async () => {
     } else if (args.simplify_headers) {
       opts.headers = (h) => h.map(header => !header ? undefined : header!
         .toLowerCase()
-        .replace(/([- ;,+'])+/g, '_')
         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/([^\w])+/g, '_').replace(/^_+|_+$/g, '')
       )
     } else {
       opts.headers = true
     }
 
     let stream = f.pipe(csv.parse(opts))
+    let merge: any = null
+    if (args.merge) {
+      merge = args.merge.split(/\s*,\s*/g).reduce((acc, item) => ({[item]: null}), {} as any)
+    }
 
     emit.collection(collection)
-    for await (const line of stream) {
+    for await (let line of stream) {
+      if (merge) line = {...line, ...merge}
       emit.data(line)
     }
   }

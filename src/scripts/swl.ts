@@ -23,6 +23,7 @@ let alias = new AliasMap()
   .add(_("xlsx-src"),   _("xlsx-sink"),   "xl", "xls", "xlsx")
   .add(_("yaml-src"),   _("yaml-sink"),   "yaml", "yml")
   .add(_("csv-src"),    null,             "csv")
+  .add(null,            _("fn"),          "fn")
   .add(null,            _("flatten"),     "flatten")
   .add(null,            _("unflatten"),   "unflatten")
   .add(null,            _("coerce"),      "coerce")
@@ -156,7 +157,7 @@ async function get_commands(cmd: string[]) {
 
   return builder.map(b => {
     if (b.includes(" ") || b.includes(";"))
-      b = `"${b.replace("\"", "\\\"")}"`
+      b = `'${b.replace("\'", "\\\'")}'`
     return b
   }).join(" ")
 }

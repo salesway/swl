@@ -90,6 +90,7 @@ export namespace emit {
   }
 
   export const chunk = tty.isatty(out) ? debug : write_chunk
+  export const output_is_tty = tty.isatty(out)
 
   export let _count = 0
   export let _current: string | null = null
@@ -225,6 +226,10 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
     throw e
   }
 
+  let debug_output = swl_verbose >= 2 && emit.output_is_tty
+  let _last = Date.now()
+  let _last_count = 0
+
   while ((read = reader.next())) {
     let type = read.type
 
@@ -246,6 +251,16 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
       collection_name = chk.name
     } else if (chunk_is_data(type, chk)) {
       _count++
+
+      if (debug_output) {
+        let _now = Date.now()
+        if (_now - _last >= 1000) {
+          log(coll(collection_name), _count, "rows handled so far -", Math.round((_count - _last_count) / ((_now - _last))), "Krows/secs")
+          _last = _now
+          _last_count = _count
+        }
+      }
+
       let data = chk
       if (collection) {
         collection_handler = await handler.collection(collection, data)
@@ -277,6 +292,8 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
     collection_handler = null
     collection = null
     _count = 0
+    _last_count = 0
+    _last = Date.now()
   }
 
   await handler.end()
@@ -429,6 +446,7 @@ export let log3 = swl_verbose >= 3 ? log : (...a: any[]) => { }
 
 export { optparser } from "./optparse"
 import { optparser, param, flag, arg } from "./optparse"
+import { debuglog } from "util"
 
 
 export const default_opts = optparser(

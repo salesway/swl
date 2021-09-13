@@ -17,6 +17,7 @@
     "swl-flatten": "lib/scripts/swl-flatten.js",
     "swl-unflatten": "lib/scripts/swl-unflatten.js",
     "swl-coerce": "lib/scripts/swl-coerce.js",
+    "swl-fn": "lib/scripts/swl-fn.js",
     "swl-csv-src": "lib/scripts/swl-csv-src.js"
   },
   "scripts": {
@@ -26,6 +27,7 @@
   "license": "ISC",
   "dependencies": {
     "@types/flat": "^5.0.2",
+    "@types/ramda": "^0.27.44",
     "better-sqlite3": "^7.4.0",
     "chalk": "^4.1.1",
     "fast-csv": "^4.3.6",
@@ -35,6 +37,7 @@
     "js-yaml-js-types": "^1.0.0",
     "pg": "^8.6.0",
     "pg-copy-streams": "^5.1.1",
+    "ramda": "^0.27.1",
     "ssh-config": "^4.0.6",
     "tunnel-ssh": "^4.1.4",
     "xlsx": "^0.17.0"
