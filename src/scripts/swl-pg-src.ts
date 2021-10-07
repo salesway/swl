@@ -30,14 +30,15 @@ source(async function pg_source() {
     // log("connected")
 
     let queries = opts.sources.length ?
-      opts.sources.map(s => ({ name: s.name, query: s.query ?? /* sql */`select * from ${s.name}` }))
+      opts.sources.map(s => ({ name: s.name, query: s.query ?? /* sql */`select row_to_json(TBL) as json from ${s.name} TBL` }))
       : await get_all_tables_from_schema(client, opts.schema)
 
     for (let q of queries) {
       const result = await client.query(q.query)
       emit.collection(q.name)
       for (let r of result.rows) {
-        emit.data(r)
+        // console.error(r)
+        emit.data(r.json)
       }
     }
     // log("queries; ", queries)
@@ -100,5 +101,5 @@ async function get_all_tables_from_schema(client: PgClient, schema: string) {
     add_deps(tblname)
   }
   let keys = Array.from(tables_set)
-  return keys.map(k => ({ name: k, query: /* sql */ `SELECT * FROM ${k}` }))
+  return keys.map(k => ({ name: k, query: /* sql */ `SELECT row_to_json(TBL) as json FROM ${k} TBL` }))
 }

@@ -25,6 +25,7 @@ source(async () => {
   for (let file of args.files) {
     let collection = args.collection ?? pth.basename(file).replace(/\.[^\.]*$/, '')
     let f = fs.createReadStream(file)
+    // console.error(args)
     let opts: csv.ParserOptionsArgs = {
       delimiter: args.delimiter,
       objectMode: true,
@@ -43,6 +44,7 @@ source(async () => {
         .toLowerCase()
         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         .replace(/([^\w])+/g, '_').replace(/^_+|_+$/g, '')
+        .trim()
       )
     } else {
       opts.headers = true

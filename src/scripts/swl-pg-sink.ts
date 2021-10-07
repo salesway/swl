@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { CollectionHandler, log, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts, log1 } from '../index'
+import { CollectionHandler, log, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts, log1, log3 } from '../index'
 import { optparser, arg, flag, param, oneof } from "../optparse"
 
 import { Client as PgClient, types } from 'pg'
@@ -20,18 +20,18 @@ let col_parser = optparser(
 )
 
 let opts_parser = optparser(
+  flag("-a", "--auto-create").as("auto_create").help("Create table if it didn't exist"),
   arg("uri").required(),
   default_opts,
-  col_options,
 
   flag("--disable-triggers").as("disable_triggers").help("Disable triggers before loading data"),
   flag("-n", "--notice").as("notice").help("Display NOTICE statements"),
   flag("-y", "--notify").as("notify").help("Display LISTEN/NOTIFY requests"),
   flag("-i", "--ignore-non-existing").as("ignore_nonexisting").help("Ignore tables that don't exist"),
   param("-s", "--schema").as("schema").default("public").help("Default schema to analyze when no collections specified"),
+  col_options,
   oneof(col_parser).as("collections").repeat(),
 )
-
 
 let opts = opts_parser.parse()
 
@@ -107,34 +107,39 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
   const table = col.name
   const temp_table_name = `${table.replace('.', '__')}_temp`
   const columns = Object.keys(first)
-  var types = columns.map(c => typeof first[c] === 'number' ? 'real'
-  : first[c] instanceof Date ? 'timestamptz'
-  : first[c] instanceof Buffer ? 'blob'
-  : 'text')
+  // var types = columns.map(c => typeof first[c] === 'number' ? 'real'
+  // : first[c] instanceof Date ? 'timestamptz'
+  // : first[c] instanceof Buffer ? 'blob'
+  // : 'text')
   // console.log(chunk.collection, types)
 
+  async function Q(sql: string) {
+    log3(sql)
+    return await db.query(sql)
+  }
+
   if (opts.drop) {
-    await db.query(/* sql */`DROP TABLE IF EXISTS ${table}`)
+    await Q(/* sql */`DROP TABLE IF EXISTS ${table}`)
   }
 
   // Create the table if it didn't exist
-  if (opts.auto_create) {
-    await db.query(/* sql */`
+  if (true || opts.auto_create) {
+    await Q(/* sql */`
       CREATE TABLE IF NOT EXISTS ${table} (
-        ${columns.map((c, i) => `"${c}" ${types[i]}`).join(', ')}
+        ${columns.map((c, i) => `"${c}" text`).join(', ')}
       )
     `)
   }
 
   if (opts.truncate) {
     log2(`truncating ${table}`)
-    await db.query(/* sql */`DELETE FROM ${table}`)
+    await Q(/* sql */`DELETE FROM ${table}`)
   }
 
   // Create a temporary table that will receive all the data through pg COPY
   // command. This table will hold plain json objects
   // log2("Creating temp table", temp_table_name)
-  await db.query(/* sql */`
+  await Q(/* sql */`
     CREATE TEMP TABLE ${temp_table_name} (
       jsondata json
     )
@@ -180,7 +185,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
       // Note: we should be able to specify the constraint manually, maybe not just the primary key ?
       let upsert = ""
       if (opts.upsert) {
-        var cst = (await db.query(/* sql */`
+        var cst = (await Q(/* sql */`
           SELECT
             constraint_name
           FROM information_schema.table_constraints
@@ -195,7 +200,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
       // Now we have enough information to actually perform the INSERT statement
       // log2("Inserting data into", table, "from temp table")
 
-      await db.query(/* sql */`
+      await Q(/* sql */`
         INSERT INTO ${table}(${columns.map(c => `"${c}"`).join(', ')}) (
           SELECT ${columns.map(c => 'R."' + c + '"').join(', ')}
           FROM ${temp_table_name} T,
@@ -205,14 +210,14 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
       `)
 
       // Drop the temporary table
-      await db.query(/* sql */`
+      await Q(/* sql */`
         DROP TABLE ${temp_table_name}
       `)
 
       // The following instructions are used to reset sequences if we have have forced
       // id blocks.
       // First, we get all the sequences associated with this table
-      const seq_res = await db.query(/* sql */`
+      const seq_res = await Q(/* sql */`
         SELECT
           column_name as name,
           regexp_replace(
@@ -230,7 +235,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
 
       for (var seq of sequences) {
         log2(`Resetting sequence ${seq.seq}`)
-        await db.query(/* sql */`
+        await Q(/* sql */`
           DO $$
           DECLARE
             themax INT;

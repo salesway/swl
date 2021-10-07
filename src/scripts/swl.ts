@@ -156,7 +156,7 @@ async function get_commands(cmd: string[]) {
   }
 
   return builder.map(b => {
-    if (b.includes(" ") || b.includes(";"))
+    if (b.includes(" ") || b.includes(";") || b.includes('"'))
       b = `'${b.replace("\'", "\\\'")}'`
     return b
   }).join(" ")
