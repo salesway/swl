@@ -15,6 +15,7 @@
    expect should always match when it gets to it otherwise it fails the match.
 */
 
+import * as pth from "path"
 
 type unionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never;
 
@@ -57,6 +58,7 @@ export class Handler<K extends string, T> {
       help?: string
       group?: string
       activators?: string[]
+      repeating?: boolean
     }
   ) { }
 
@@ -69,6 +71,11 @@ export class Handler<K extends string, T> {
       value as any ?? this.value,
       this.opts
     )
+  }
+
+  markRepeating() {
+    this.opts.repeating = true
+    return this
   }
 
   required() {
@@ -120,7 +127,7 @@ export class Handler<K extends string, T> {
         if (r instanceof MatchError || r === undefined) return r
         return r
       },
-    )
+    ).markRepeating()
   }
 }
 
@@ -341,6 +348,55 @@ export class CliParser<T = {}> {
     return res as T
   }
 
+  getHelp(): string {
+    let res = ""
+    let log = (str: string) => { res += str + "\n" }
+    const grps: Map<string, Handler<any, any>[]> = new Map()
+    const others: Handler<any, any>[] = []
+
+    let cmd = `${pth.basename(process.argv[1])} <options>`
+
+    for (let h of this.handlers) {
+      let opts = h.opts
+      if (opts.group) {
+        let hlds = grps.get(opts.group) ?? []
+        grps.set(opts.group, hlds)
+        hlds.push(h)
+      } else {
+        others.push(h)
+        if (!opts.activators) {
+          cmd += ` [${opts.key}${opts.repeating ? "..." : ""}]`
+        }
+      }
+    }
+
+    log(cmd + "\n")
+
+    let disp = (h: Handler<any, any>) => {
+      let opts = h.opts
+      let act = opts.activators
+      if (act) {
+        log(`  ${opts.activators?.join(" ")} ${opts.help ?? ""}`)
+      } else {
+        log(`  [${opts.key}${opts.repeating ? "..." : ""}] ${h.opts.help ?? ""}`)
+        if (h instanceof CliParser) {
+          log(h.getHelp())
+        }
+      }
+    }
+
+    for (let h of others) {
+      disp(h)
+    }
+
+    for (let [name, handlers] of grps) {
+      log("\n" + name + "\n")
+      for (let h of handlers) disp(h)
+    }
+
+    return res
+  }
+
   parse(args: string[] = process.argv.slice(2)): T {
     args = expand_flags(args)
     let r = this.doScan(args, 0)
@@ -354,7 +410,10 @@ export class CliParser<T = {}> {
     }
 
     let r2 = this.doValues(r.mapres)
-    if (r2 instanceof MatchError) throw new Error("match error: " + r2.message)
+    if (r2 instanceof MatchError) {
+      console.log(this.getHelp())
+      throw new Error("match error: " + r2.message)
+    }
     return r2
   }
 }

@@ -13,8 +13,8 @@ const opts_src = optparser(
 
 const opts = optparser(
   default_opts,
-  arg("uri").required(),
   param("-s", "--schema").as("schema").default("public"),
+  arg("uri").required(),
   oneof(opts_src).as("sources").repeat(),
 ).parse()
 
