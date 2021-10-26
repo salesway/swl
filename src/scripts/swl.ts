@@ -19,6 +19,7 @@ class AliasMap {
 
 let alias = new AliasMap()
   .add(_("pg-src"),     _("pg-sink"),     "pg")
+  .add(_("my-src"),     null,             "my", "mysql")
   .add(_("sqlite-src"), _("sqlite-sink"), "sqlite")
   .add(_("xlsx-src"),   _("xlsx-sink"),   "xl", "xls", "xlsx")
   .add(_("yaml-src"),   _("yaml-sink"),   "yaml", "yml")
@@ -37,6 +38,7 @@ let file_extensions = new AliasMap()
 
 let protocols = new AliasMap()
   .add(_("pg-src"),     _("pg-sink"), "postgres://")
+  .add(_("my-src"),     null,         "mysql://")
   // add mysql
   // add mssql
   // add oracle

@@ -20,8 +20,8 @@ let col_parser = optparser(
 )
 
 let opts_parser = optparser(
-  flag("-a", "--auto-create").as("auto_create").help("Create table if it didn't exist"),
   arg("uri").required(),
+  flag("-a", "--auto-create").as("auto_create").help("Create table if it didn't exist"),
   default_opts,
 
   flag("--disable-triggers").as("disable_triggers").help("Disable triggers before loading data"),
