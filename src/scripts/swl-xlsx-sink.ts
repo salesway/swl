@@ -9,7 +9,7 @@ import { arg, flag, optparser } from "../optparse"
 let opts = optparser(
   arg("file").required(),
   default_opts,
-  flag("-c", "--compress").as("compression").help("Enable XLSX compression"),
+  flag("-u", "--uncompress").as("uncompress").help("Disable XLSX compression"),
 )
   .parse()
 
@@ -41,7 +41,7 @@ sink(function () {
       }
     },
     end() {
-      writeFile(wb, opts.file, { compression: !!opts.compression, })
+      writeFile(wb, opts.file, { compression: !opts.uncompress, })
     }
   }
 })
