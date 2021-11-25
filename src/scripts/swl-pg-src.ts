@@ -14,7 +14,7 @@ const opts_src = optparser(
 const opts = optparser(
   default_opts,
   param("-s", "--schema").as("schema").default("public"),
-  arg("uri").required(),
+  arg("uri").help("a postgres connection uri such as postgres://user:pass@host/database").required(),
   oneof(opts_src).as("sources").repeat(),
 ).parse()
 

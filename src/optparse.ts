@@ -365,7 +365,7 @@ export class CliParser<T = {}> {
       } else {
         others.push(h)
         if (!opts.activators) {
-          cmd += ` [${opts.key}${opts.repeating ? "..." : ""}]`
+          cmd += ` [${opts.key}${opts.repeating ? "..." : ""}]${opts.help ? " " + opts.help : ""}`
         }
       }
     }

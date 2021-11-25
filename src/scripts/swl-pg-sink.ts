@@ -12,6 +12,7 @@ let col_options = optparser(
   flag("-t", "--truncate").as("truncate"),
   flag("-d", "--drop").as("drop"),
   flag("-u", "--upsert").as("upsert"),
+  flag("-U", "--update").as("update"),
 )
 
 let col_parser = optparser(
@@ -39,6 +40,7 @@ for (let c of opts.collections) {
   if (opts.truncate) c.truncate = true
   if (opts.drop) c.drop = true
   if (opts.upsert) c.upsert = true
+  if (opts.update) c.update = true
   if (opts.auto_create) c.auto_create = true
 }
 
@@ -163,8 +165,9 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
 
   return {
     async data(data) {
-      // console.error(JSON.stringify(data))
-      if (!stream.write('@' + JSON.stringify(data).replace(/@/g, '@@') + '@\n')) {
+      const payload = '@' + JSON.stringify(data).replace(/@/g, '@@') + '@\n'
+      // console.error(payload)
+      if (!stream.write(payload)) {
         drain_lock = new Lock()
         await drain_lock.promise
         drain_lock = null
@@ -194,20 +197,49 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
           ORDER BY constraint_type
         `))
 
+        // console.error(cst)
         upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${cst.rows[0].constraint_name}" DO UPDATE SET ${columns.map(c => `"${c}" = EXCLUDED."${c}"`)} `
+
       }
 
       // Now we have enough information to actually perform the INSERT statement
       // log2("Inserting data into", table, "from temp table")
 
-      await Q(/* sql */`
-        INSERT INTO ${table}(${columns.map(c => `"${c}"`).join(', ')}) (
-          SELECT ${columns.map(c => 'R."' + c + '"').join(', ')}
-          FROM ${temp_table_name} T,
-            json_populate_record(null::${table}, T.jsondata) R
-        )
-        ${upsert}
-      `)
+      if (opts.update) {
+        let update = ""
+        let pk: {rows: {cols: string[]}[]} = (await Q(/* sql */`
+          SELECT json_agg(a.attname) as cols
+          FROM   pg_index i
+          JOIN   pg_attribute a ON a.attrelid = i.indrelid
+          AND a.attnum = ANY(i.indkey)
+          WHERE  i.indrelid = '${table}'::regclass
+          AND    i.indisprimary;
+        `))
+        let pk_columns = pk.rows[0].cols
+
+        await Q(/* sql */`
+          UPDATE ${table}
+            SET ${columns.filter(col => pk_columns.indexOf(col) === -1)
+              .map(col => `"${col}" = (T.rec)."${col}"`)
+              .join(", ")
+            }
+          FROM (
+            SELECT json_populate_record(null::${table}, T.jsondata) rec FROM ${temp_table_name} T
+          ) T
+          WHERE ${pk_columns.map(col => `(T.rec)."${col}" = ${table}."${col}"`)}
+        `)
+        // console.error(pk.rows[0].cols)
+        // update = /* sql */ `UPDATE ${table}(${})`
+      } else {
+        await Q(/* sql */`
+          INSERT INTO ${table}(${columns.map(c => `"${c}"`).join(', ')}) (
+            SELECT ${columns.map(c => 'R."' + c + '"').join(', ')}
+            FROM ${temp_table_name} T,
+              json_populate_record(null::${table}, T.jsondata) R
+          )
+          ${upsert}
+        `)
+      }
 
       // Drop the temporary table
       await Q(/* sql */`
