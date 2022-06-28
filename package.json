@@ -42,7 +42,8 @@
     "ramda": "^0.27.1",
     "ssh-config": "^4.0.6",
     "tunnel-ssh": "^4.1.4",
-    "xlsx": "^0.17.0"
+    "xlsx": "^0.17.0",
+    "xlsx-stream-reader": "^1.1.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^5.4.1",
