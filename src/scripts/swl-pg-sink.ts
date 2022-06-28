@@ -58,6 +58,7 @@ sink(async () => {
   let uri = open.uri.startsWith("postgres://") ? open.uri : `postgres://${open.uri}`
 
   let db = new PgClient(uri)
+  const seen_collections = new Set<string>()
 
   return {
 
@@ -89,7 +90,7 @@ sink(async () => {
     },
 
     async collection(col, first) {
-      return collection_handler(db, col, first)
+      return collection_handler(db, col, first, seen_collections)
     },
 
     async end() {
@@ -104,7 +105,7 @@ sink(async () => {
   }
 })
 
-async function collection_handler(db: PgClient, col: Collection, first: any): Promise<CollectionHandler> {
+async function collection_handler(db: PgClient, col: Collection, first: any, seen: Set<string>): Promise<CollectionHandler> {
 
   const table = col.name
   const temp_table_name = `${table.replace('.', '__')}_temp`
@@ -120,24 +121,28 @@ async function collection_handler(db: PgClient, col: Collection, first: any): Pr
     return await db.query(sql)
   }
 
-  if (opts.drop) {
-    await Q(/* sql */`DROP TABLE IF EXISTS ${table}`)
-  }
+  if (!seen.has(col.name)) {
 
-  // Create the table if it didn't exist
-  if (true || opts.auto_create) {
-    await Q(/* sql */`
-      CREATE TABLE IF NOT EXISTS ${table} (
-        ${columns.map((c, i) => `"${c}" text`).join(', ')}
-      )
-    `)
-  }
+    if (opts.drop) {
+      await Q(/* sql */`DROP TABLE IF EXISTS ${table}`)
+    }
 
-  if (opts.truncate) {
-    log2(`truncating ${table}`)
-    await Q(/* sql */`DELETE FROM ${table}`)
-  }
+    // Create the table if it didn't exist
+    if (true || opts.auto_create) {
+      await Q(/* sql */`
+        CREATE TABLE IF NOT EXISTS ${table} (
+          ${columns.map((c, i) => `"${c}" text`).join(', ')}
+        )
+      `)
+    }
 
+    if (opts.truncate) {
+      log2(`truncating ${table}`)
+      await Q(/* sql */`DELETE FROM ${table}`)
+    }
+
+    seen.add(col.name)
+  }
   // Create a temporary table that will receive all the data through pg COPY
   // command. This table will hold plain json objects
   // log2("Creating temp table", temp_table_name)

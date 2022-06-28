@@ -14,6 +14,7 @@ const opts_src = optparser(
   param("-c", "--collection").as("collection"),
   param("-m", "--merge").as("merge").help("Add null columns"),
   flag("-s", "--simplify-headers").as("simplify_headers"),
+  flag("-n", "--no-empty").as("noempty"),
   arg("files").required().repeat(),
 )
 
@@ -56,9 +57,13 @@ source(async () => {
       merge = args.merge.split(/\s*,\s*/g).reduce((acc, item) => ({[item]: null}), {} as any)
     }
 
+    const noempty = args.noempty
     emit.collection(collection)
     for await (let line of stream) {
       if (merge) line = {...line, ...merge}
+      if (noempty) {
+        for (let x in line) { if (line[x] === "") delete line[x] }
+      }
       emit.data(line)
     }
   }
