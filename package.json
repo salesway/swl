@@ -19,7 +19,8 @@
     "swl-unflatten": "lib/scripts/swl-unflatten.js",
     "swl-coerce": "lib/scripts/swl-coerce.js",
     "swl-fn": "lib/scripts/swl-fn.js",
-    "swl-csv-src": "lib/scripts/swl-csv-src.js"
+    "swl-csv-src": "lib/scripts/swl-csv-src.js",
+    "swl-csv-sink": "lib/scripts/swl-csv-src.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
