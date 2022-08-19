@@ -9,6 +9,8 @@ import { optparser, arg, param, flag, } from "../optparse"
 const opts_src = optparser(
   param("-d", "--delimiter").as("delimiter").default(","),
   param("-q", "--quote").as("quote"),
+  flag("-n", "--no-empty").as("noempty"),
+  flag("-N", "--empty-null").as("emptyisnull"),
   param("-e", "--escape").as("escape"),
   param("-h", "--headers").as("headers").default(""),
   param("-c", "--collection").as("collection"),
@@ -57,12 +59,22 @@ source(async () => {
       merge = args.merge.split(/\s*,\s*/g).reduce((acc, item) => ({[item]: null}), {} as any)
     }
 
-    const noempty = args.noempty
+    const noempty = !!args.noempty
+    const emptyisnull = !!args.emptyisnull
+
     emit.collection(collection)
     for await (let line of stream) {
       if (merge) line = {...line, ...merge}
       if (noempty) {
-        for (let x in line) { if (line[x] === "") delete line[x] }
+        for (let x in line) {
+          if (line[x] === "")
+            delete line[x]
+        }
+      } else if (emptyisnull) {
+        for (let x in line) {
+          if (line[x] === "")
+            line[x] = null
+        }
       }
       emit.data(line)
     }

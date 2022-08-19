@@ -25,7 +25,7 @@ source(() => {
   if (sources.length === 0) {
     // Auto-detect *tables* (not views)
     // If no sources are specified, all the tables are outputed.
-    const st = db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`)
+    const st = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_stat%'`)
       .pluck()
 
     sources = st.all().map((name: string) => ({name, query: undefined}))

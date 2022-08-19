@@ -45,8 +45,7 @@
     "tunnel-ssh": "^4.1.4",
     "typescript": "^4.7.4",
     "wtsc": "^0.1.2",
-    "xlsx": "^0.17.0",
-    "xlsx-stream-reader": "^1.1.1"
+    "xlsx": "^0.17.5"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^5.4.1",
