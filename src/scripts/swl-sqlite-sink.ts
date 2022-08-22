@@ -83,6 +83,8 @@ function collection_handler(name: string, start: any): CollectionHandler {
         let v = data[c]
         if (v instanceof Date) return v.toJSON()
         if (v && typeof v === 'object' && !(v instanceof Buffer)) return JSON.stringify(v)
+        if (typeof v === "boolean") return v ? 1 : 0
+        // console.debug(typeof v, v?.constructor?.name)
         return v
       }))
     },
