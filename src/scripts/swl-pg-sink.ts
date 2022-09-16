@@ -22,7 +22,7 @@ let col_parser = optparser(
 
 let opts_parser = optparser(
   arg("uri").required(),
-  flag("-a", "--auto-create").as("auto_create").help("Create table if it didn't exist"),
+  flag("-a", "--auto-create").as("auto_create").default(false).help("Create table if it didn't exist"),
   default_opts,
 
   flag("--disable-triggers").as("disable_triggers").help("Disable triggers before loading data"),
@@ -128,7 +128,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
     }
 
     // Create the table if it didn't exist
-    if (true || opts.auto_create) {
+    if (opts.auto_create) {
       await Q(/* sql */`
         CREATE TABLE IF NOT EXISTS ${table} (
           ${columns.map((c, i) => `"${c}" text`).join(', ')}
