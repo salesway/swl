@@ -477,3 +477,4 @@ export const default_col_src_opts = optparser(
 
 export const default_col_sql_src_opts = default_col_src_opts.clone()
   .add_handler(param("-q", "--query").as("query"))
+  .add_handler(param("-r", "--rename").as("rename").default(""))

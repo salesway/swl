@@ -28,7 +28,7 @@ source(() => {
     const st = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_stat%'`)
       .pluck()
 
-    sources = st.all().map((name: string) => ({name, query: undefined}))
+    sources = st.all().map((name: string) => ({name, query: undefined, rename: ""}))
   }
 
   for (var source of sources) {

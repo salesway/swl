@@ -6,7 +6,7 @@ import { execSync } from "child_process"
 import { performance } from "perf_hooks"
 import { col_num, log } from "../index"
 
-import { optparser, flag, param } from "../optparse"
+import { optparser, flag, } from "../optparse"
 
 class AliasMap {
   map = new Map<string, {source: string | null, sink: string | null}>()
@@ -59,7 +59,7 @@ const opts = optparser(
     if (verbose == null)
       verbose = v.length
   }),
-  param("-h", "--help").as("help"),
+  flag("-h", "--help", "help").as("help"),
 ).parse(pre_flags)
 
 if (opts.help) {
