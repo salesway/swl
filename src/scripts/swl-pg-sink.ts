@@ -138,7 +138,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
 
     if (opts.truncate) {
       log2(`truncating ${table}`)
-      await Q(/* sql */`DELETE FROM ${table}`)
+      await Q(/* sql */`TRUNCATE ${table} CASCADE`)
     }
 
     seen.add(col.name)
