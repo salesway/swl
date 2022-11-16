@@ -19,7 +19,7 @@ let opts = optparser(
   .parse()
 
 source(function () {
-  let contents = readFileSync(opts.file, opts.encoding ?? "utf-8")
+  let contents = readFileSync(opts.file, { encoding: (opts.encoding as BufferEncoding) ?? "utf-8" })
 
   // A special context for the code being evaled by !!e
   let context = {}

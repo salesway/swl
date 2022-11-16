@@ -79,7 +79,7 @@ get_commands(cmd).then(c => {
     if (!process.env.SWL_CHILD)
       log("done in", col_num(Math.round(end - start)) + "ms",)
 
-  } catch (e) {
+  } catch (e: any) {
     process.exit(e.status)
   }
 })

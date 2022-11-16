@@ -211,7 +211,6 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
       // log2("Inserting data into", table, "from temp table")
 
       if (opts.update) {
-        let update = ""
         let pk: {rows: {cols: string[]}[]} = (await Q(/* sql */`
           SELECT json_agg(a.attname) as cols
           FROM   pg_index i

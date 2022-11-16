@@ -87,7 +87,6 @@ source(function () {
     }
 
     // Now that we've got the header, we just go on with the rest of the lines
-    var not_found_count = 0
     for (var j = header_line + 1; j <= lines; j++) {
       let obj: {[name: string]: any} = {}
       var found = false
@@ -97,7 +96,6 @@ source(function () {
         if (cell) {
           obj[header[i - header_column]] = cell.v
           found = found || cell.v != null && cell.v != ""
-          not_found_count = 0
         } else {
           obj[header[i - header_column]] = null
         }

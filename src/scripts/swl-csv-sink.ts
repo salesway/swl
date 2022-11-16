@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log2, log3, sink, CollectionHandler, Sink, default_opts, } from "../index"
-import { optparser, arg, oneof, flag, param } from "../optparse"
+import { log2, sink, CollectionHandler, Sink, default_opts, } from "../index"
+import { optparser, arg, flag, param } from "../optparse"
 
 import * as fs from "fs"
 import * as path from "path"

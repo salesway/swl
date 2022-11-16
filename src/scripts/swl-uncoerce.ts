@@ -28,7 +28,6 @@ sink(function () {
   return {
     collection(col) {
       let name = col.name
-      let coerce_null = opts.null
       emit.collection(name)
 
       return {
