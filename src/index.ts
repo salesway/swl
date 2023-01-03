@@ -119,7 +119,6 @@ export namespace emit {
   }
 }
 
-
 export function report_error(err: ErrorChunk) {
   if (tty.isatty(out)) {
     log("error: ", err)
@@ -205,8 +204,25 @@ export interface Sink {
 let passthrough = false
 
 export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
-
   let handler = typeof _handler === "function" ? await _handler() : _handler
+  if (tty.isatty(0)) throw new Error(`a sink needs an input`)
+  if (passthrough) handler.passthrough = true
+
+  try {
+    await sink_handle(handler)
+  } catch (e: any) {
+    emit.error({
+      origin: self_name,
+      message: e.message,
+      stack: e.stack
+    })
+    // console.error(e)
+    process.exit(1)
+  }
+}
+
+async function sink_handle(handler: Sink) {
+
   let reader = packet_reader()
 
   let collection_handler: CollectionHandler | null = null
@@ -214,17 +230,9 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
   let collection: Collection | null = null
   let _count = 0
 
-  if (passthrough) handler.passthrough = true
-
-  if (tty.isatty(0)) throw new Error(`a sink needs an input`)
   let read: null | ReturnType<ReturnType<typeof packet_reader>["next"]>
 
-  try {
-    await handler.init?.()
-  } catch (e) {
-    log(e)
-    throw e
-  }
+  await handler.init?.()
 
   let debug_output = swl_verbose >= 2 && emit.output_is_tty
   let _last = Date.now()
@@ -263,9 +271,10 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
 
       let data = chk
       if (collection) {
-        collection_handler = await handler.collection(collection, data)
+        collection_handler = await handler.collection(collection!, data)
         collection = null
       }
+
       await collection_handler!.data(chk)
     } else if (chunk_is_message(type, chk)) {
       await handler.message?.(chk)
@@ -280,7 +289,6 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
       return
     }
 
-    // console.log(packet)
   }
 
   await end_collection()
@@ -407,7 +415,11 @@ export function source<T>(fn: () => T) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 process.on("uncaughtException", err => {
-  log(col_error("error"), err.message)
+  if (err.message.startsWith("EPIPE: broken pipe")) {
+    log(col_error("broken pipe"))
+  } else {
+    log(col_error("uncaught error"), err.message, err.stack)
+  }
   if (!process.stdout.isTTY && !err.message.startsWith("EPIPE: broken pipe"))
     emit.error({message: err.message})
   process.exit(1)

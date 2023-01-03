@@ -39,7 +39,7 @@
     "js-yaml": "^4.1.0",
     "js-yaml-js-types": "^1.0.0",
     "pg": "^8.6.0",
-    "pg-copy-streams": "^5.1.1",
+    "pg-copy-streams": "6.0.4",
     "promise-mysql": "^5.0.4",
     "ramda": "^0.27.1",
     "ssh-config": "^4.0.6",

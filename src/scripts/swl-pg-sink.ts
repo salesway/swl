@@ -93,6 +93,10 @@ sink(async () => {
       return collection_handler(db, col, first, seen_collections)
     },
 
+    async error(err: any) {
+      console.error(err)
+    },
+
     async end() {
       await db.query("COMMIT")
       log2("commited changes")
@@ -110,15 +114,23 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
   const table = col.name
   const temp_table_name = `${table.replace('.', '__')}_temp`
   const columns = Object.keys(first)
+  let hstore_columns: string[] | undefined = undefined
   // var types = columns.map(c => typeof first[c] === 'number' ? 'real'
   // : first[c] instanceof Date ? 'timestamptz'
   // : first[c] instanceof Buffer ? 'blob'
   // : 'text')
   // console.log(chunk.collection, types)
 
-  async function Q(sql: string) {
+  // Figure out if the input name is dotted or not. If not, then use "public" ?
+  let schema = opts.schema
+  let table_name = table
+  if (table.includes("."))
+    [schema, table_name] = table.split(".")
+
+
+  async function Q(sql: string, args?: any[]) {
     log3(sql)
-    return await db.query(sql)
+    return await db.query(sql, args)
   }
 
   if (!seen.has(col.name)) {
@@ -152,6 +164,17 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
     )
   `)
 
+  // Figure out if we have some hstore columns, which will need to be rebuilt
+  let hstore_columns_query = await Q(/* sql */`
+    SELECT
+      json_agg(column_name) as hstore_columns
+    FROM information_schema.columns
+    WHERE table_name = $2 AND table_schema = $1 AND udt_name = 'hstore'
+  `, [schema, table_name])
+
+  hstore_columns = hstore_columns_query.rows[0]?.hstore_columns
+
+
   // We create a copy stream to the database where we will dump exactly one JSON
   // object per line, using @ as the quote character, which we double in the stream input.
   // This is because we will then use the fantastic json_populate_record to
@@ -167,9 +190,26 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
   stream.on("drain", _ => {
     drain_lock?.resolve()
   })
+  stream.on("finish", _ => {
+    log3("stream ended")
+  })
+
+  const hstore_len = hstore_columns?.length ?? 0
+  function hstore_quote(s: string) { return s.replace(/["\\]/g, m => "\\" + m) }
 
   return {
     async data(data) {
+      if (hstore_len) {
+        for (let i = 0; i < hstore_len; i++) {
+          const col = hstore_columns![i]
+          const dt = data[col]
+          if (dt == null || typeof data[hstore_columns![i]] === "string") continue
+          // transform the object into an hstore compliant string
+          data[col] = Object.getOwnPropertyNames(dt)
+            .map(name => `"${hstore_quote(name)}"=>"${hstore_quote(dt[name])}"`).join(",")
+          // console.error(data[col])
+        }
+      }
       const payload = '@' + JSON.stringify(data).replace(/@/g, '@@') + '@\n'
       // console.error(payload)
       if (!stream.write(payload)) {
@@ -181,12 +221,6 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
     async end() {
       // log2("closing COPY pipe")
       stream.end()
-
-      // Figure out if the input name is dotted or not. If not, then use "public" ?
-      let schema = opts.schema
-      let table_name = table
-      if (table.includes("."))
-        [schema, table_name] = table.split(".")
 
       // If we're trying to UPSERT data instead of plain INSERT, figure out the
       // primary key constraint name for this table, and use it.

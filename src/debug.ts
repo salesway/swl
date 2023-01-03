@@ -1,5 +1,6 @@
 import * as ch from 'chalk'
-import { Chunk, ChunkType, chunk_is_collection, chunk_is_data } from './types'
+import { col_error } from '.'
+import { Chunk, ChunkType, chunk_is_collection, chunk_is_data, chunk_is_error, ErrorChunk } from './types'
 
 export const c = new ch.Instance({level: 3})
 // const c = ch.constructor({level: 3})
@@ -75,6 +76,10 @@ export function debug(type: ChunkType, chunk: Chunk) {
     // var d = chunk
     process.stderr.write(`${info(_current_collection)}:${num(++_current_nb)} `)
     print_value(process.stderr, chunk)
+    process.stderr.write('\n')
+  } else if (chunk_is_error(type, chunk)) {
+    const _ = chunk as ErrorChunk
+    process.stderr.write(_.origin + " " + col_error("ERROR") + " " + _.message)
     process.stderr.write('\n')
   } else {
     console.error(chunk)
