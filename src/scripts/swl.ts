@@ -2,7 +2,7 @@
 
 import { existsSync } from "fs"
 import { extname, join } from "path"
-import { execSync } from "child_process"
+import { execSync, } from "child_process"
 import { performance } from "perf_hooks"
 import { col_num, log } from "../index"
 
@@ -69,6 +69,7 @@ if (opts.help) {
 
 get_commands(cmd).then(c => {
   try {
+    // console.error(c)
     execSync(c, { stdio: "inherit", env: {
       ...process.env,
       SWL_CHILD: "child",
@@ -123,6 +124,7 @@ async function figure_out_who(item: string, source: boolean): Promise<string[]> 
 }
 
 async function get_commands(cmd: string[]) {
+  // console.log(cmd)
   let commands: {command: string[], source: boolean}[] = []
   {
     let command: string[] = []
@@ -138,6 +140,8 @@ async function get_commands(cmd: string[]) {
       } else if (item === "++") {
         command = []
         commands.push({source: true, command})
+      } else if (item.includes("|")) {
+        command.push(item.replace(/\|/g, '\\|'))
       } else {
         command.push(item)
       }
@@ -157,6 +161,7 @@ async function get_commands(cmd: string[]) {
     builder = [...builder, ...c.command]
   }
 
+  // console.log(builder)
   return builder.map(b => {
     if (b.includes(" ") || b.includes(";") || b.includes('"'))
       b = `'${b.replace("\'", "\\\'")}'`
