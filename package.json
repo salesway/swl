@@ -31,7 +31,7 @@
   "dependencies": {
     "@types/flat": "^5.0.2",
     "@types/ramda": "^0.27.44",
-    "better-sqlite3": "^7.4.0",
+    "better-sqlite3": "8.3.0",
     "chalk": "^4.1.1",
     "fast-csv": "^4.3.6",
     "flat": "^5.0.2",

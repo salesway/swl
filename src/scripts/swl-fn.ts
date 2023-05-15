@@ -25,7 +25,7 @@ sink(function () {
       return {
         async data(data) {
           let res = await fn(data)
-          emit.data(res)
+          if (res != null) emit.data(res)
         },
         end() {
 

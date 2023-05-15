@@ -463,16 +463,24 @@ import { optparser, param, flag, arg } from "./optparse"
 
 const grp = "BASE SWL OPTIONS"
 export const default_opts = optparser(
-  flag("-p", "--passthrough").as("passthrough").map(p => {
-    if (p) passthrough = true
-  }).group(grp),
-  param("-a", "--alias").as("alias").group(grp)
+  flag("-p", "--passthrough")
+    .as("passthrough")
+    .group(grp)
+    .map(p => {
+      if (p) passthrough = true
+      return p
+    }),
+  param("-a", "--alias")
+    .as("alias")
+    .group(grp)
     .help("give another name to this component in the pipe")
     .map(alias => {
       self_name = col_alias("(" + alias + ") ") + self_name
       return alias
     }),
-  flag("-v", "--verbose").as("verbose").group(grp)
+  flag("-v", "--verbose")
+    .as("verbose")
+    .group(grp)
     .repeat()
     .map(vb => {
       let verb = Math.max(swl_verbose, vb.length)

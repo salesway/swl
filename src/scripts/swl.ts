@@ -53,14 +53,12 @@ let cmd = process.argv.slice(2)
   }
 }
 
-let verbose: undefined | number = process.env.SWL_VERBOSE ? parseInt(process.env.SWL_VERBOSE) : undefined
 const opts = optparser(
-  flag("-v", "--verbose").as("verbose").repeat().map(v => {
-    if (verbose == null)
-      verbose = v.length
-  }),
+  flag("-v", "--verbose").as("verbose").repeat().map(v => v.length),
   flag("-h", "--help", "help").as("help"),
 ).parse(pre_flags)
+
+let verbose: undefined | number = opts.verbose ?? (process.env.SWL_VERBOSE ? parseInt(process.env.SWL_VERBOSE) : undefined)
 
 if (opts.help) {
   console.error("Usage: swl ...")
@@ -135,7 +133,7 @@ async function get_commands(cmd: string[]) {
         // with a sink, eg. if we're running the command over ssh.
         if (commands.length === 1 && commands[0].command.length === 0)
           commands = []
-        command = []
+        command = [].map
         commands.push({source: false, command})
       } else if (item === "++") {
         command = []

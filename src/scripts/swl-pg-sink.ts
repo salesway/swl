@@ -21,7 +21,7 @@ let col_parser = optparser(
 )
 
 let opts_parser = optparser(
-  arg("uri").required(),
+  arg("uri").required().help("a postgres uri to connect to"),
   flag("-a", "--auto-create").as("auto_create").default(false).help("Create table if it didn't exist"),
   default_opts,
 
