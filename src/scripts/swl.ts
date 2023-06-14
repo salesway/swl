@@ -133,7 +133,7 @@ async function get_commands(cmd: string[]) {
         // with a sink, eg. if we're running the command over ssh.
         if (commands.length === 1 && commands[0].command.length === 0)
           commands = []
-        command = [].map
+        command = []
         commands.push({source: false, command})
       } else if (item === "++") {
         command = []
