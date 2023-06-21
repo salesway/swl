@@ -13,6 +13,7 @@ export interface Collection {
 export interface ErrorChunk {
   origin?: string
   stack?: string
+  payload?: any
   message: string
 }
 

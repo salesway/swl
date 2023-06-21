@@ -79,8 +79,20 @@ export function debug(type: ChunkType, chunk: Chunk) {
     process.stderr.write('\n')
   } else if (chunk_is_error(type, chunk)) {
     const _ = chunk as ErrorChunk
-    process.stderr.write(_.origin + " " + col_error("ERROR") + " " + _.message)
+    process.stderr.write(_.origin + " " + col_error("ERROR") + " " + _.message + " ")
     process.stderr.write('\n')
+    if (_.payload) {
+      let pay = _.payload
+      try {
+        pay = JSON.parse(_.payload)
+      } catch { }
+
+      for (let x in pay) {
+        process.stderr.write(_.origin + " " + col_error(x) + ": " + pay[x] + "\n")
+      }
+    } else {
+
+    }
   } else {
     console.error(chunk)
   }

@@ -214,6 +214,7 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
     emit.error({
       origin: self_name,
       message: e.message,
+      payload: JSON.stringify(e),
       stack: e.stack
     })
     // console.error(e)
