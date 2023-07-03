@@ -264,7 +264,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
           FROM (
             SELECT json_populate_record(null::${table}, T.jsondata) rec FROM ${temp_table_name} T
           ) T
-          WHERE ${pk_columns.map(col => `(T.rec)."${col}" = ${table}."${col}"`)}
+          WHERE ${pk_columns.map(col => `(T.rec)."${col}" = ${table}."${col}"`).join(" AND ")}
         `)
         // console.error(pk.rows[0].cols)
         // update = /* sql */ `UPDATE ${table}(${})`
