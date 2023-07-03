@@ -20,6 +20,7 @@
     "swl-unflatten": "lib/scripts/swl-unflatten.js",
     "swl-coerce": "lib/scripts/swl-coerce.js",
     "swl-fn": "lib/scripts/swl-fn.js",
+    "swl-parquet-src": "lib/scripts/swl-parquet-src.js",
     "swl-csv-src": "lib/scripts/swl-csv-src.js",
     "swl-csv-sink": "lib/scripts/swl-csv-src.js"
   },
@@ -31,6 +32,7 @@
   "dependencies": {
     "@types/flat": "^5.0.2",
     "@types/ramda": "^0.27.44",
+    "apache-arrow": "^12.0.1",
     "better-sqlite3": "8.3.0",
     "chalk": "^4.1.1",
     "fast-csv": "^4.3.6",
@@ -38,6 +40,7 @@
     "get-port": "^5.1.1",
     "js-yaml": "^4.1.0",
     "js-yaml-js-types": "^1.0.0",
+    "parquet-wasm": "^0.4.0-beta.5",
     "pg": "^8.6.0",
     "pg-copy-streams": "6.0.4",
     "promise-mysql": "^5.0.4",

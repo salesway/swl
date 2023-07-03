@@ -9,6 +9,7 @@ export const grey = c.rgb(111, 111, 111)
 export const constant = c.hsl(0, 60, 60)
 export const info = c.hsl(40, 60, 60)
 export const str = c.hsl(80, 60, 60)
+export const fn = c.hsl(320, 60, 60)
 export const num = c.hsl(120, 60, 60)
 export const date = c.hsl(140, 60, 60)
 export const prop = c.hsl(180, 30, 30)
@@ -31,10 +32,14 @@ export function print_value(out: NodeJS.WritableStream, obj: any, outside = true
 
   if (obj == null) {
     out.write(constant(obj))
+  } else if (typeof obj === "function") {
+    out.write(fn(obj.toString()))
   } else if (typeof obj === 'string') {
     out.write(str(obj.replace(/\n/g, '\\n') || "''"))
   } else if (typeof obj === 'number') {
     out.write(num(obj as any))
+  } else if (typeof obj === "bigint") {
+    out.write(num(obj.toString()))
   } else if (typeof obj === 'boolean') {
     out.write(bool(obj as any))
   } else if (obj instanceof Date) {

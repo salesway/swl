@@ -2,12 +2,14 @@ import * as fs from "fs"
 import * as pth from "path"
 
 import * as csv from "fast-csv"
+import * as gzip from "zlib"
 
-import { emit, source } from ".."
+import { coll, emit, file, log1, log2, source } from ".."
 import { optparser, arg, param, flag, } from "../optparse"
 
 const opts_src = optparser(
   param("-d", "--delimiter").as("delimiter").default(","),
+  flag("--gunzip").as("gunzip"),
   param("-q", "--quote").as("quote"),
   flag("-n", "--no-empty").as("noempty"),
   flag("-N", "--empty-null").as("emptyisnull"),
@@ -24,10 +26,13 @@ const args = opts_src.parse()
 
 
 source(async () => {
+  args.files.sort()
+  let prev_collection = ""
 
-  for (let file of args.files) {
-    let collection = args.collection ?? pth.basename(file).replace(/\.[^\.]*$/, '')
-    let f = fs.createReadStream(file)
+  for (let fname of args.files) {
+    log1(`opening ${file(fname)}`)
+    let collection = args.collection ?? pth.basename(fname).replace(/([-_]\d+)?\.[^\.]*$/, '')
+    let f = fs.createReadStream(fname)
     // console.error(args)
     let opts: csv.ParserOptionsArgs = {
       delimiter: args.delimiter,
@@ -53,6 +58,12 @@ source(async () => {
       opts.headers = true
     }
 
+    if (args.gunzip) {
+      const zip = gzip.createGunzip()
+      f.pipe(zip)
+      f = zip as any
+    }
+
     let stream = f.pipe(csv.parse(opts))
     let merge: any = null
     if (args.merge) {
@@ -62,7 +73,10 @@ source(async () => {
     const noempty = !!args.noempty
     const emptyisnull = !!args.emptyisnull
 
-    emit.collection(collection)
+    if (prev_collection !== collection) {
+      emit.collection(collection)
+      prev_collection = collection
+    }
     for await (let line of stream) {
       if (merge) line = {...line, ...merge}
       if (noempty) {
