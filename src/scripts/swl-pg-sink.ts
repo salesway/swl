@@ -255,7 +255,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
         `))
         let pk_columns = pk.rows[0].cols
 
-        await Q(/* sql */`
+        const res = await Q(/* sql */`
           UPDATE ${table}
             SET ${columns.filter(col => pk_columns.indexOf(col) === -1)
               .map(col => `"${col}" = (T.rec)."${col}"`)
@@ -266,10 +266,12 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
           ) T
           WHERE ${pk_columns.map(col => `(T.rec)."${col}" = ${table}."${col}"`).join(" AND ")}
         `)
+        log2(res.rowCount, "rows updated")
+        // console.error(res)
         // console.error(pk.rows[0].cols)
         // update = /* sql */ `UPDATE ${table}(${})`
       } else {
-        await Q(/* sql */`
+        const res = await Q(/* sql */`
           INSERT INTO ${table}(${columns.map(c => `"${c}"`).join(', ')}) (
             SELECT ${columns.map(c => 'R."' + c + '"').join(', ')}
             FROM ${temp_table_name} T,
@@ -277,6 +279,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
           )
           ${upsert}
         `)
+        log2(res.rowCount, "rows inserted")
       }
 
       // Drop the temporary table
