@@ -91,16 +91,29 @@ source(function () {
       let obj: {[name: string]: any} = {}
       var found = false
 
+      let error: string | null = null
+      let error_xl_a1: string | null = null
       for (let i = header_column; i < header.length; i++) {
         const cell = s[`${COLS[i]}${j}`]
+        const head = header[i - header_column]
         if (cell) {
-          obj[header[i - header_column]] = cell.v
+          obj[head] = cell.v
           found = found || cell.v != null && cell.v != ""
+
+          if (cell.t === "e") {
+            error = head
+            error_xl_a1 = `${COLS[i]}${j}`
+            obj[head] = cell.w
+          }
         } else {
-          obj[header[i - header_column]] = null
+          obj[head] = null
         }
       }
 
+      if (error != null) {
+        emit.error({message: `the cell ${error_xl_a1} (${error}) contained an error`, payload: obj })
+        return
+      }
       if (found) emit.data(obj)
     }
 
