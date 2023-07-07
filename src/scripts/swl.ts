@@ -64,7 +64,6 @@ const opts = optparser(
 ).parse(pre_flags)
 
 let verbose: undefined | number = opts.quiet ? undefined : opts.verbose ?? (process.env.SWL_VERBOSE ? parseInt(process.env.SWL_VERBOSE) : 2)
-console.log(verbose, opts.verbose, opts.quiet)
 
 if (opts.help) {
   console.error("Usage: swl ...")
