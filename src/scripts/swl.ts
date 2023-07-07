@@ -7,6 +7,7 @@ import { performance } from "perf_hooks"
 import { col_num, log } from "../index"
 
 import { optparser, flag, } from "../optparse"
+import * as ch from "chalk"
 
 class AliasMap {
   map = new Map<string, {source: string | null, sink: string | null}>()
@@ -154,8 +155,28 @@ async function get_commands(cmd: string[]) {
   let builder: string[] = []
   let first = true
 
+  function show_aliases(aliases: Map<string, {source: string | null, sink: string | null}>) {
+    const lst = [...aliases].sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)
+    return lst.map(([key, pro]) => {
+      const sigil = pro.source && pro.sink ? ch.magentaBright("⇄")
+        : pro.source ? ch.greenBright("←")
+        : ch.redBright("→")
+
+      return `  ${sigil} ${key}`
+    }).join("\n")
+  }
+
   for (let c of commands) {
-    if (!c.command[0]) throw new Error("a command may not be empty")
+    if (!c.command[0]) {
+      console.error("error: a command may not be empty\n\n  list of available sources/sinks :\n")
+      console.log("handlers:")
+      console.log(show_aliases(alias.map) + "\n")
+      console.log("extensions:")
+      console.log(show_aliases(file_extensions.map) + "\n")
+      console.log("protocols:")
+      console.log(show_aliases(protocols.map) + "\n")
+      process.exit(1)
+    }
 
     if (!first) { builder.push("|") } else { first = false }
     let res = c.command.slice(1)

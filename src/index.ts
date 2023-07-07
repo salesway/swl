@@ -465,7 +465,7 @@ import { optparser, param, flag, arg } from "./optparse"
 const grp = "BASE SWL OPTIONS"
 export const default_opts = optparser(
   flag("-p", "--passthrough")
-    .as("passthrough")
+    .as("passthrough").help("let the sink handle the data but still forward it")
     .group(grp)
     .map(p => {
       if (p) passthrough = true
@@ -493,9 +493,9 @@ export const default_opts = optparser(
 )
 
 export const default_col_src_opts = optparser(
-  arg("name").required()
+  arg("name").required().help("the name of the collection. If no query is provided, will also be the name of the queried table/view")
 )
 
 export const default_col_sql_src_opts = default_col_src_opts.clone()
-  .add_handler(param("-q", "--query").as("query"))
-  .add_handler(param("-r", "--rename").as("rename").default(""))
+  .add_handler(param("-q", "--query").as("query").help("an SQL query instead of select *"))
+  // .add_handler(param("-r", "--rename").as("rename").default(""))

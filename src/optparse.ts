@@ -16,6 +16,7 @@
 */
 
 import * as pth from "path"
+import * as ch from "chalk"
 
 type unionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never;
 
@@ -59,6 +60,7 @@ export class Handler<K extends string, T> {
       group?: string
       activators?: string[]
       repeating?: boolean
+      bases?: CliParser[]
     }
   ) { }
 
@@ -215,7 +217,7 @@ export function oneof<O extends CliParser<any>[]>(...opt: O) {
           if (!opt) return undefined // this should never happen !?
           return opt.opt.doValues(opt.mapres)
         },
-        { key }
+        { key, bases: opt }
       )
     }
   }
@@ -312,14 +314,14 @@ export class CliParser<T = {}> {
   /** doScan returns */
   doScan(args: string[], pos: number) {
     let mapres = new Map<Handler<any, any>, string[][]>()
-    for (let h of this.handlers) {
+    for (let h of [HELP, ...this.handlers]) {
       mapres.set(h, [])
     }
 
     let l = args.length
     let init = pos
     scanargs: while (pos < l) {
-      for (let h of this.handlers) {
+      for (let h of [HELP, ...this.handlers]) {
         let acc = mapres.get(h)!
         let res = h.scan(args, pos, acc)
         if (res instanceof MatchError) return res
@@ -339,8 +341,12 @@ export class CliParser<T = {}> {
 
   doValues(mapres: Map<Handler<any, any>, string[][]>) {
     let res: any = {}
-    for (let h of this.handlers) {
+    for (let h of [HELP, ...this.handlers]) {
       let r = h.value(mapres.get(h) ?? [])
+      if (r === true && h === HELP) {
+        res[h.opts.key] = r
+        return res as T
+      }
       if (r instanceof MatchError) return r
       res[h.opts.key] = r
     }
@@ -348,13 +354,11 @@ export class CliParser<T = {}> {
     return res as T
   }
 
-  getHelp(): string {
+  getHelp(indent = "", cmd = `${pth.basename(process.argv[1])}`): string {
     let res = ""
     let log = (str: string) => { res += str + "\n" }
     const grps: Map<string, Handler<any, any>[]> = new Map()
     const others: Handler<any, any>[] = []
-
-    let cmd = `${pth.basename(process.argv[1])} <options>`
 
     for (let h of this.handlers) {
       let opts = h.opts
@@ -365,7 +369,7 @@ export class CliParser<T = {}> {
       } else {
         others.push(h)
         if (!opts.activators) {
-          cmd += ` [${opts.key}${opts.repeating ? "..." : ""}]${opts.help ? " " + opts.help : ""}`
+          cmd += ` [${opts.key}${opts.repeating ? "..." : ""}]`
         }
       }
     }
@@ -376,17 +380,20 @@ export class CliParser<T = {}> {
       let opts = h.opts
       let act = opts.activators
       if (act) {
-        log(`  ${opts.activators?.join(" ")} ${opts.help ?? ""}`)
+        log(`${indent}  ${opts.activators?.join(" ")} ${ch.gray(opts.help ?? "")}`)
       } else {
-        log(`  [${opts.key}${opts.repeating ? "..." : ""}] ${h.opts.help ?? ""}`)
+        log(`${indent}  [${opts.key}${opts.repeating ? "..." : ""}] ${ch.gray(h.opts.help ?? "")}`)
         if (h instanceof CliParser) {
-          log(h.getHelp())
+          log(h.getHelp("  "), )
         }
       }
     }
 
     for (let h of others) {
       disp(h)
+      for (let b of (h.opts.bases??[])) {
+        log(b.getHelp("  ", `\nwhere ${h.opts.key}: <options>`))
+      }
     }
 
     for (let [name, handlers] of grps) {
@@ -410,15 +417,23 @@ export class CliParser<T = {}> {
     }
 
     let r2 = this.doValues(r.mapres)
-    if (r2 instanceof MatchError) {
-      console.log(this.getHelp())
-      throw new Error("match error: " + r2.message)
+    if ((r2 as any).__help) {
+      console.error(this.getHelp())
+      process.exit(1)
     }
+    if (r2 instanceof MatchError) {
+      console.error(ch.redBright("match error: " + r2.message))
+      console.error(this.getHelp())
+      process.exit(1)
+    }
+
     return r2
   }
 }
 
+const HELP = flag("--help").as("__help")
+
 export function optparser<H extends (Handler<any, any> | CliParser<any>)[]>(...h: H): CliParser<total_result<H>> {
   let o = new CliParser()
-  return o.add_handler(...h)
+  return o.add_handler(...h) as any
 }
