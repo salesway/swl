@@ -56,11 +56,15 @@ let cmd = process.argv.slice(2)
 }
 
 const opts = optparser(
-  flag("-v", "--verbose").as("verbose").repeat().map(v => v.length),
+  flag("--quiet").as("quiet").default(false),
+  flag("-v", "--verbose").as("verbose").repeat().map(v => {
+    return v.length || 2
+  }),
   flag("-h", "--help", "help").as("help"),
 ).parse(pre_flags)
 
-let verbose: undefined | number = opts.verbose ?? (process.env.SWL_VERBOSE ? parseInt(process.env.SWL_VERBOSE) : undefined)
+let verbose: undefined | number = opts.quiet ? undefined : opts.verbose ?? (process.env.SWL_VERBOSE ? parseInt(process.env.SWL_VERBOSE) : 2)
+console.log(verbose, opts.verbose, opts.quiet)
 
 if (opts.help) {
   console.error("Usage: swl ...")
