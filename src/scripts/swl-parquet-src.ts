@@ -42,11 +42,16 @@ source(async () => {
       const obj: any = {}
 
       const item = table.get(i)
-      // console.error(item)
       for (let f of fields) {
-        console.error(f.type)
-        const v = (item as any)[f.name]
-        obj[f.name] = v// v?.buffer ? v?.valueOf() : v
+        let v = (item as any)[f.name]
+        if (Array.isArray(f.type.children)) {
+          // ??
+          v = [...v.toArray()]
+        }
+        if (typeof v === "bigint") {
+          v = Number(v)
+        }
+        obj[f.name] = v
       }
 
       emit.data(obj)
