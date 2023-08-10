@@ -37,7 +37,7 @@ source(async () => {
     let opts: csv.ParserOptionsArgs = {
       delimiter: args.delimiter,
       objectMode: true,
-      quote: args.quote ?? null,
+      quote: args.quote ?? '"',
       escape: args.escape ?? undefined,
       ignoreEmpty: true,
       discardUnmappedColumns: true,
