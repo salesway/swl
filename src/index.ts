@@ -431,12 +431,22 @@ export class Lock<T> {
   promise: Promise<T>
   _accept!: (t: T) => void
   _reject!: (e: any) => void
-  constructor() {
 
+  constructor() {
     this.promise = new Promise((accept, reject) => {
       this._accept = accept
       this._reject = reject
     })
+  }
+
+  get callback() {
+    return (err: any, res: any) => {
+      if (err != null) {
+        this._reject(err)
+      } else {
+        this._accept(res)
+      }
+    }
   }
 
   resolve(t: T) {

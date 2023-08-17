@@ -6,6 +6,7 @@
   "types": "lib/index.d.ts",
   "bin": {
     "swl": "lib/scripts/swl.js",
+    "swl-duckdb-sink": "lib/scripts/swl-duckdb-sink.js",
     "swl-xls-src": "lib/scripts/swl-xlsx-src.js",
     "swl-xls-sink": "lib/scripts/swl-xlsx-sink.js",
     "swl-yaml-src": "lib/scripts/swl-yaml-src.js",
@@ -21,6 +22,7 @@
     "swl-coerce": "lib/scripts/swl-coerce.js",
     "swl-fn": "lib/scripts/swl-fn.js",
     "swl-parquet-src": "lib/scripts/swl-parquet-src.js",
+    "swl-parquet-sink": "lib/scripts/swl-parquet-sink.js",
     "swl-csv-src": "lib/scripts/swl-csv-src.js",
     "swl-csv-sink": "lib/scripts/swl-csv-src.js"
   },
@@ -32,15 +34,14 @@
   "dependencies": {
     "@types/flat": "^5.0.2",
     "@types/ramda": "^0.27.44",
-    "apache-arrow": "^12.0.1",
     "better-sqlite3": "8.3.0",
     "chalk": "^4.1.1",
+    "duckdb": "^0.8.1",
     "fast-csv": "^4.3.6",
     "flat": "^5.0.2",
     "get-port": "^5.1.1",
     "js-yaml": "^4.1.0",
     "js-yaml-js-types": "^1.0.0",
-    "parquet-wasm": "^0.4.0-beta.5",
     "pg": "^8.6.0",
     "pg-copy-streams": "6.0.4",
     "promise-mysql": "^5.0.4",
