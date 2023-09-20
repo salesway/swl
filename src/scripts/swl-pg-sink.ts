@@ -86,15 +86,10 @@ sink(async () => {
         log1("disabling triggers")
         await db.query(/* sql */ `SET session_replication_role = replica;`)
       }
-
     },
 
     async collection(col, first) {
       return collection_handler(db, col, first, seen_collections)
-    },
-
-    async error(err: any) {
-      console.error(err)
     },
 
     async end() {
@@ -173,7 +168,6 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
   `, [schema, table_name])
 
   hstore_columns = hstore_columns_query.rows[0]?.hstore_columns
-
 
   // We create a copy stream to the database where we will dump exactly one JSON
   // object per line, using @ as the quote character, which we double in the stream input.

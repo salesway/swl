@@ -111,19 +111,20 @@ export namespace emit {
   })
 
   export function error(err: ErrorChunk) {
-    let stack = {stack: ""}
-    Error.captureStackTrace(stack, error)
-    err.origin = self_name
-    err.stack = stack.stack
-    chunk(ChunkType.Error, err)
+    const err_ = {message: err.message, origin: err.origin ?? self_name, stack: err.stack ?? ""}
+    if (!err.stack) {
+      Error.captureStackTrace(err_, error)
+    }
+    chunk(ChunkType.Error, err_)
   }
 }
 
 export function report_error(err: ErrorChunk) {
   if (tty.isatty(out)) {
-    log("error: ", err)
+    debug(ChunkType.Error, err)
+    // log("error: ", err)
   } else {
-    emit.error(err)
+    emit.chunk(ChunkType.Error, err)
   }
 }
 
@@ -242,7 +243,7 @@ async function sink_handle(handler: Sink) {
   while ((read = reader.next())) {
     let type = read.type
 
-    let chk: Chunk = v8.deserialize(read.view)
+    let chk: Chunk = v8.deserialize(read.view) as Chunk
 
     if (handler.passthrough) {
       // NOTE: passthrough should probably be revamped so that some sink could turn it off or on as needed

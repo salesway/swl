@@ -14,6 +14,7 @@ const opts_src = optparser(
   flag("-n", "--no-empty").as("noempty"),
   flag("-N", "--empty-null").as("emptyisnull"),
   param("-e", "--escape").as("escape"),
+  param("-E", "--encoding").as("encoding").default("utf-8"),
   param("-h", "--headers").as("headers").default(""),
   param("-c", "--collection").as("collection"),
   param("-m", "--merge").as("merge").help("Add null columns"),
@@ -41,6 +42,7 @@ source(async () => {
       escape: args.escape ?? undefined,
       ignoreEmpty: true,
       discardUnmappedColumns: true,
+      encoding: args.encoding ?? "utf-8",
     }
 
     if (args.headers) {
