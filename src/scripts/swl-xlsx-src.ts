@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { source, emit } from "../index"
+import { source, emit, log2, col_alias } from "../index"
 import { arg, oneof, optparser, param } from "../optparse"
 import * as xl from "xlsx"
 
@@ -53,7 +53,6 @@ source(function () {
       emit.error(new Error(`no such sheet "${c.name}"`))
       continue
     }
-    emit.collection(c.rename)
 
     const re_range = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/
     const match = re_range.exec(s['!ref'] as string)
@@ -86,6 +85,7 @@ source(function () {
       header.push(cell.v)
     }
 
+    let emitted_collection = false
     // Now that we've got the header, we just go on with the rest of the lines
     for (var j = header_line + 1; j <= lines; j++) {
       let obj: {[name: string]: any} = {}
@@ -114,9 +114,18 @@ source(function () {
         emit.error({message: `the cell ${error_xl_a1} (${error}) contained an error`, payload: obj })
         return
       }
-      if (found) emit.data(obj)
+      if (found) {
+        if (!emitted_collection) {
+          emit.collection(c.rename)
+          emitted_collection = true
+        }
+        emit.data(obj)
+      }
     }
 
+    if (!emitted_collection) {
+      log2(`${col_alias(c.rename)} was empty, nothing emitted`)
+    }
 
   }
 
