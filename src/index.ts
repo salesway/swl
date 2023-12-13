@@ -111,7 +111,7 @@ export namespace emit {
   })
 
   export function error(err: ErrorChunk) {
-    const err_ = {message: err.message, origin: err.origin ?? self_name, stack: err.stack ?? ""}
+    const err_ = {message: err.message, origin: err.origin ?? self_name, stack: err.stack ?? "", payload: err.payload}
     if (!err.stack) {
       Error.captureStackTrace(err_, error)
     }
@@ -212,6 +212,8 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
   try {
     await sink_handle(handler)
   } catch (e: any) {
+    // console.dir(e)
+    // console.error(JSON.stringify(e))
     emit.error({
       origin: self_name,
       message: e.message,
