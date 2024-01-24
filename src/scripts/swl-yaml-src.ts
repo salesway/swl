@@ -2,6 +2,7 @@
 
 import { readFileSync } from "fs"
 import { createContext, runInContext } from "vm"
+import { basename } from "path"
 
 import { DEFAULT_SCHEMA, Type, load } from "js-yaml"
 
@@ -14,6 +15,7 @@ import { default_opts, emit, source } from '../index'
 let opts = optparser(
   arg("file").required(),
   param("-e", "--encoding").as("encoding"),
+  param("-c", "--collection").as("collection"),
   default_opts,
 )
   .parse()
@@ -42,7 +44,10 @@ source(function () {
     ...all
   ])
 
-  const parsed: object | any[] = load(contents, { filename: opts.file, schema }) as any
+  let parsed: object | any[] = load(contents, { filename: opts.file, schema }) as any
+  if (Array.isArray(parsed)) {
+    parsed = {[opts.collection ?? basename(opts.file)]: parsed}
+  }
 
   var acc: {[name: string]: any[]} = {}
   for (const [col, cts] of Object.entries(parsed)) {
