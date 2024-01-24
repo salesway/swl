@@ -8,6 +8,7 @@ import * as xl from "xlsx"
 let collections_opts = optparser(
   arg("name").required(),
   param("-r", "--rename").as("rename").help("Rename this collection"),
+  param("-i", "--include").as("include").help("Include columns starting with '.'")
 )
 
 let opts_ = optparser(
@@ -94,8 +95,9 @@ source(function () {
       let error: string | null = null
       let error_xl_a1: string | null = null
       for (let i = header_column; i < header.length; i++) {
-        const cell = s[`${COLS[i]}${j}`]
         const head = header[i - header_column]
+        if (head[0] === ".") continue
+        const cell = s[`${COLS[i]}${j}`]
         if (cell) {
           obj[head] = cell.v
           found = found || cell.v != null && cell.v != ""
