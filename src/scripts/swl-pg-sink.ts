@@ -97,6 +97,8 @@ sink(async () => {
       log2("commited changes")
     },
     async finally() {
+      log2("running analyze")
+      await db.query("ANALYZE")
       log2("disconnecting from database")
       await db.end()
       await open.tunnel?.close()
