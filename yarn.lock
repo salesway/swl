@@ -284,13 +284,13 @@ bcrypt-pbkdf@^1.0.2:
   dependencies:
     tweetnacl "^0.14.3"
 
-better-sqlite3@8.3.0:
-  version "8.3.0"
-  resolved "https://registry.npmjs.org/better-sqlite3/-/better-sqlite3-8.3.0.tgz"
-  integrity sha512-JTmvBZL/JLTc+3Msbvq6gK6elbU9/wVMqiudplHrVJpr7sVMR9KJrNhZAbW+RhXKlpMcuEhYkdcHa3TXKNXQ1w==
+better-sqlite3@9.4.3:
+  version "9.4.3"
+  resolved "https://registry.yarnpkg.com/better-sqlite3/-/better-sqlite3-9.4.3.tgz#7df39ba3273fbb7c0561cf913572547142868cc4"
+  integrity sha512-ud0bTmD9O3uWJGuXDltyj3R47Nz0OHX8iqPOT5PMspGqlu/qQFn+5S2eFBUCrySpavTjFXbi4EgrfVvPAHlImw==
   dependencies:
     bindings "^1.5.0"
-    prebuild-install "^7.1.0"
+    prebuild-install "^7.1.1"
 
 bignumber.js@9.0.0:
   version "9.0.0"
@@ -1267,10 +1267,10 @@ postgres-interval@^1.1.0:
   dependencies:
     xtend "^4.0.0"
 
-prebuild-install@^7.1.0:
-  version "7.1.1"
-  resolved "https://registry.npmjs.org/prebuild-install/-/prebuild-install-7.1.1.tgz"
-  integrity sha512-jAXscXWMcCK8GgCoHOfIr0ODh5ai8mj63L2nWrjuAgXE6tDyYGnx4/8o/rCgU+B4JSyZBKbeZqzhtwtC3ovxjw==
+prebuild-install@^7.1.1:
+  version "7.1.2"
+  resolved "https://registry.yarnpkg.com/prebuild-install/-/prebuild-install-7.1.2.tgz#a5fd9986f5a6251fbc47e1e5c65de71e68c0a056"
+  integrity sha512-UnNke3IQb6sgarcZIDU3gbMeTp/9SSU1DAIkil7PrqG1vZlBtY5msYccSKSHDqa3hNg436IXK+SNImReuA1wEQ==
   dependencies:
     detect-libc "^2.0.0"
     expand-template "^2.0.3"

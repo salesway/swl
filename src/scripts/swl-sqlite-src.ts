@@ -18,7 +18,7 @@ let opts = opt_parser.parse()
 
 
 source(() => {
-  let db = new DB(opts.file, {readonly: true, fileMustExist: true})
+  let db = new DB(opts.file, {readonly: true, fileMustExist: true, })
   log2("opened file", file(opts.file), "to read")
   var sources = opts.collections
 
@@ -38,7 +38,15 @@ source(() => {
 
     emit.collection(source.name)
     var iterator = (stmt as any).iterate() as IterableIterator<any>
+    const jsonb_cols = stmt.columns().filter(c => c.type?.toUpperCase() === "JSONB" && c.column)
     for (var s of iterator) {
+      if (jsonb_cols.length) {
+        for (let col of jsonb_cols) {
+          try {
+            s[col.column!] = JSON.parse(s[col.column!])
+          } catch (e) { }
+        }
+      }
       emit.data(s)
     }
   }

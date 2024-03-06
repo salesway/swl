@@ -43,8 +43,9 @@ function collection_handler(name: string, start: any): CollectionHandler {
   var columns = Object.keys(start)
 
   var types = columns.map(c => typeof start[c] === "number" ? "int"
-  : start[c] instanceof Buffer ? "blob"
-  : "text")
+  : start[c] instanceof Buffer ? "BLOB"
+  : start[c]?.constructor === Object || Array.isArray(start[c]) ? "JSONB"
+  : "TEXT")
 
   if (opts.drop) {
     log2("dropping", col_table(table))
@@ -125,6 +126,7 @@ sink((): Sink => {
     end() {
       db.exec("COMMIT")
       log2("commited changes")
+      db.pragma("journal_mode = delete")
       db.close()
     },
   }
