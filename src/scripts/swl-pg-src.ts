@@ -2,7 +2,7 @@
 
 import { Client as PgClient } from 'pg'
 
-import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src } from '../index'
+import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src, ColumnHelper, SwlColumnType } from '../index'
 import { optparser, arg, param, oneof } from "../optparse"
 
 
@@ -26,19 +26,33 @@ source(async function pg_source() {
   let uri = open.uri.startsWith("postgres://") ? open.uri : `postgres://${open.uri}`
 
   let client = new PgClient(uri)
-  async function process() {
+  async function _process() {
     // log("connected")
 
+    const types = await get_types(client)
+
     let queries = opts.sources.length ?
-      opts.sources.map(s => ({ name: s.name, query: s.query ?? /* sql */`select row_to_json(TBL) as json from ${s.name} TBL` }))
+      opts.sources.map(s => ({ name: s.name, query: s.query ?? /* sql */`select * from ${s.name} TBL` }))
       : await get_all_tables_from_schema(client, opts.schema)
 
     for (let q of queries) {
       const result = await client.query(q.query)
-      emit.collection(q.name)
+      const helpers: ColumnHelper[] = result.fields.map(f => {
+        const t = types.get(f.dataTypeID)!
+        const res: ColumnHelper = {
+          name: f.name,
+          nullable: true,
+          db_type: t.typname,
+          type: pg_type_to_type(t),
+        }
+        return res
+      })
+      emit.collection(q.name, helpers)
+      console.error(helpers)
+      continue
       for (let r of result.rows) {
         // console.error(r)
-        emit.data(r.json)
+        emit.data(r)
       }
     }
     // log("queries; ", queries)
@@ -47,13 +61,53 @@ source(async function pg_source() {
   try {
     await client.connect()
     log1("connected to", col_src(uri))
-    await process()
+    await _process()
   } finally {
     client.end()
     open.tunnel?.close()
   }
 })
 
+function pg_type_to_type(type: PgType): SwlColumnType {
+  const pg_type = type.typname.toLocaleLowerCase()
+
+  if (type.typinput === "record_in" || type.typinput === "array_in") return "json"
+
+  if (pg_type.startsWith("date") || pg_type.startsWith("time"))
+    return "date"
+
+  if (pg_type.startsWith("json"))
+    return "json"
+
+  if (pg_type.startsWith("int"))
+    return "int"
+
+  if (pg_type === "bool")
+    return "bool"
+
+  if (pg_type.includes("char") || pg_type === "text")
+    return "text"
+
+  return "float"
+}
+
+export interface PgType {
+  oid: number
+  typname: string
+  typlen: number
+  typtype: string
+  typcategory: string
+  typinput: string
+}
+
+async function get_types(client: PgClient) {
+  const types_q = await client.query(/* sql */`select * from pg_type`)
+  const rows: Map<number, PgType> = types_q.rows.reduce((acc, item) => {
+    acc.set(item.oid, item)
+    return acc
+  }, new Map)
+  return rows
+}
 
 async function get_all_tables_from_schema(client: PgClient, schema: string) {
   let tbls = await client.query(/* sql */ `
@@ -101,5 +155,5 @@ async function get_all_tables_from_schema(client: PgClient, schema: string) {
     add_deps(tblname)
   }
   let keys = Array.from(tables_set)
-  return keys.map(k => ({ name: k, query: /* sql */ `SELECT row_to_json(TBL) as json FROM ${k} TBL` }))
+  return keys.map(k => ({ name: k, query: /* sql */ `SELECT * FROM ${k} TBL` }))
 }

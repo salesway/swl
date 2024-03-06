@@ -6,8 +6,29 @@ export const enum ChunkType {
   Message = 4,
 }
 
+export type SwlColumnType =
+  | "bool"
+  | "text"
+  | "int"
+  | "float"
+  | "json"
+  | "date" // Always TZ. If TZ was not specified, UTC should be assumed.
+
+export interface ColumnHelper {
+  /** The name of the column */
+  name: string
+  /** Whether the column is nullable */
+  nullable: boolean
+  /** The internal type */
+  type: SwlColumnType
+  /** The type name as specified by the database */
+  db_type?: string
+  /** Mostly the column is null */
+}
+
 export interface Collection {
   name: string
+  columns?: ColumnHelper[]
 }
 
 export interface ErrorChunk {

@@ -6,7 +6,7 @@ import * as fs from "fs"
 import * as tty from "tty"
 import * as path from "path"
 
-import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error } from "./types"
+import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error, ColumnHelper } from "./types"
 import { coll, debug, num, c } from "./debug"
 
 export * from "./types"
@@ -99,11 +99,11 @@ export namespace emit {
     chunk(ChunkType.Data, data)
   }
 
-  export function collection(name: string) {
+  export function collection(name: string, helpers?: ColumnHelper[]) {
     if (_current != null) log1(coll(_current), col_src("emitted »"), num(_count), "lines")
     _current = name
     _count = 0
-    chunk(ChunkType.Collection, { name })
+    chunk(ChunkType.Collection, { name, helpers })
   }
 
   process.on("beforeExit", _ => {
