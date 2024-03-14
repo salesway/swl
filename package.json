@@ -12,6 +12,8 @@
     "swl-duckdb-sink": "lib/scripts/swl-duckdb-sink.js",
     "swl-xls-src": "lib/scripts/swl-xlsx-src.js",
     "swl-xls-sink": "lib/scripts/swl-xlsx-sink.js",
+    "swl-json-src": "lib/scripts/swl-json-src.js",
+    "swl-json-sink": "lib/scripts/swl-json-sink.js",
     "swl-yaml-src": "lib/scripts/swl-yaml-src.js",
     "swl-yaml-sink": "lib/scripts/swl-yaml-sink.js",
     "swl-pg-sink": "lib/scripts/swl-pg-sink.js",

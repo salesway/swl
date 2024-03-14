@@ -48,8 +48,6 @@ source(async function pg_source() {
         return res
       })
       emit.collection(q.name, helpers)
-      console.error(helpers)
-      continue
       for (let r of result.rows) {
         // console.error(r)
         emit.data(r)

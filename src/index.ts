@@ -103,7 +103,7 @@ export namespace emit {
     if (_current != null) log1(coll(_current), col_src("emitted »"), num(_count), "lines")
     _current = name
     _count = 0
-    chunk(ChunkType.Collection, { name, helpers })
+    chunk(ChunkType.Collection, { name, columns: helpers })
   }
 
   process.on("beforeExit", _ => {

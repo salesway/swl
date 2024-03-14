@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { log2, log3, sink, CollectionHandler, Sink, default_opts, col_table, col_num } from "../index"
+import { log2, log3, sink, CollectionHandler, Sink, default_opts, col_table, col_num, Collection, ColumnHelper } from "../index"
 import { optparser, arg, oneof, flag } from "../optparse"
 
 import * as DB from "better-sqlite3"
@@ -38,14 +38,25 @@ function exec(stmt: string) {
   db.exec(stmt)
 }
 
-function collection_handler(name: string, start: any): CollectionHandler {
-  let table = name
-  var columns = Object.keys(start)
+function collection_handler(col: Collection, start: any): CollectionHandler {
+  let table = col.name
+  var columns = col.columns ? col.columns.map(c => c.name) : Object.keys(start)
 
-  var types = columns.map(c => typeof start[c] === "number" ? "int"
-  : start[c] instanceof Buffer ? "BLOB"
-  : start[c]?.constructor === Object || Array.isArray(start[c]) ? "JSONB"
-  : "TEXT")
+  function _(c: ColumnHelper) { return c.db_type ? ` /* ${c.db_type} */` : "" }
+
+  var types = col.columns ? col.columns.map(c =>
+      c.type === "text" ? `TEXT${_(c)}`
+      : c.type === "date" ? `DATECHAR${_(c)}`
+      : c.type === "json" ? `JSON${_(c)}`
+      : c.type === "int" ? `INT${_(c)}`
+      : c.type === "bool" ? `BOOLINT${_(c)}`
+      : `REAL${_(c)}`
+    ) :
+    columns.map(c => typeof start[c] === "number" ? "int"
+      : start[c] instanceof Buffer ? "BLOB"
+      : start[c]?.constructor === Object || Array.isArray(start[c]) ? "JSONB"
+      : "TEXT"
+    )
 
   if (opts.drop) {
     log2("dropping", col_table(table))
@@ -117,7 +128,7 @@ sink((): Sink => {
   db.exec("BEGIN")
   return {
     collection(col, start) {
-      return collection_handler(col.name, start)
+      return collection_handler(col, start)
     },
     error() {
       log2("rollbacked")

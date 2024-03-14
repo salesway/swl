@@ -38,7 +38,7 @@ source(() => {
 
     emit.collection(source.name)
     var iterator = (stmt as any).iterate() as IterableIterator<any>
-    const jsonb_cols = stmt.columns().filter(c => c.type?.toUpperCase() === "JSONB" && c.column)
+    const jsonb_cols = stmt.columns().filter(c => c.type?.toUpperCase().startsWith("JSON") && c.column)
     for (var s of iterator) {
       if (jsonb_cols.length) {
         for (let col of jsonb_cols) {
