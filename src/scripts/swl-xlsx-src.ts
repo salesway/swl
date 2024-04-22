@@ -50,6 +50,9 @@ source(function () {
 
   for (let c of sheet_names) {
     const s = reader.Sheets[c.name]
+    if (c.rename[0] === ".") {
+      continue
+    }
     if (!s) {
       emit.error(new Error(`no such sheet "${c.name}"`))
       continue
