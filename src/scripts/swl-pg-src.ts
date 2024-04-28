@@ -1,6 +1,7 @@
 #!/usr/bin/env -S node --enable-source-maps
 
-import { Client as PgClient } from 'pg'
+import { Client as PgClient, QueryResultBase } from 'pg'
+import * as Cursor from "pg-cursor"
 
 import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src, ColumnHelper, SwlColumnType } from '../index'
 import { optparser, arg, param, oneof } from "../optparse"
@@ -36,8 +37,10 @@ source(async function pg_source() {
       : await get_all_tables_from_schema(client, opts.schema)
 
     for (let q of queries) {
-      const result = await client.query(q.query)
-      const helpers: ColumnHelper[] = result.fields.map(f => {
+      const cursor = new Cursor(q.query)
+      const result = await client.query(cursor) as Cursor & {_result: QueryResultBase}
+
+      const helpers: ColumnHelper[] = result._result.fields.map(f => {
         const t = types.get(f.dataTypeID)!
         const res: ColumnHelper = {
           name: f.name,
@@ -47,11 +50,15 @@ source(async function pg_source() {
         }
         return res
       })
-      emit.collection(q.name, helpers)
-      for (let r of result.rows) {
-        // console.error(r)
-        emit.data(r)
-      }
+
+      emit.collection(q.name, helpers.length ? helpers : undefined)
+      let rows: any[] = []
+      do {
+        rows = await cursor.read(100)
+        for (let r of rows) {
+          emit.data(r)
+        }
+      } while (rows.length > 0)
     }
     // log("queries; ", queries)
   }

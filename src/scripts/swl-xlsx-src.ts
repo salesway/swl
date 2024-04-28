@@ -1,29 +1,26 @@
 #!/usr/bin/env -S node --enable-source-maps
 
 import { source, emit, log2, col_alias } from "../index"
-import { arg, oneof, optparser, param } from "../optparse"
+import { arg, flag, oneof, optparser, param, } from "../optparse"
 import * as xl from "xlsx"
 
+let collection_flags = optparser(
+  param("-r", "--rename").as("rename").help("Rename this collection"),
+  flag("-i", "--include").as("include").help("Include columns starting with '.'"),
+  flag("-N", "--empty-null").as("emptynull").help("Empty string is null"),
+)
 
 let collections_opts = optparser(
   arg("name").required(),
-  param("-r", "--rename").as("rename").help("Rename this collection"),
-  param("-i", "--include").as("include").help("Include columns starting with '.'")
+  collection_flags,
 )
 
-let opts_ = optparser(
+let opts = optparser(
   arg("file").required(),
+  collection_flags,
   oneof(collections_opts).as("collections").repeat(),
 )
   .parse()
-
-let opts = {
-  ...opts_,
-  sources: opts_.collections.reduce((acc, item) => {
-    acc.set(item.name, item)
-    return acc
-  }, new Map<string, typeof opts_["collections"][0]>())
-}
 
 
 if (!opts.file) throw new Error("need a file")
@@ -42,15 +39,21 @@ source(function () {
   }
 
   const reader = xl.readFile(opts.file)
-  let sheet_names = reader.SheetNames.map(s => ({ name: s, rename: s }))
 
-  if (opts.collections.length) {
-    sheet_names = opts.collections.map(c => ({ name: c.name, rename: c.rename ?? c.name }))
+  if (!opts.collections.length) {
+    opts.collections = reader.SheetNames.map(s => ({
+      name: s,
+      rename: s,
+      emptynull: opts.emptynull,
+      include: opts.include,
+    }))
   }
 
-  for (let c of sheet_names) {
+  for (let c of opts.collections) {
     const s = reader.Sheets[c.name]
-    if (c.rename[0] === ".") {
+    const empty_null = opts.emptynull || c.emptynull
+
+    if ((c.rename ?? c.name)[0] === ".") {
       continue
     }
     if (!s) {
@@ -103,13 +106,21 @@ source(function () {
         const cell = s[`${COLS[i]}${j}`]
         if (cell) {
           obj[head] = cell.v
-          found = found || cell.v != null && cell.v != ""
+          const empty_cell = (cell.v == null || cell.v === "")
+          found = found || !empty_cell
 
           if (cell.t === "e") {
             error = head
             error_xl_a1 = `${COLS[i]}${j}`
             obj[head] = cell.w
+            continue
           }
+
+          if (empty_cell && empty_null && !!cell.f) {
+            // console.error(head, cell)
+            obj[head] = null
+          }
+
         } else {
           obj[head] = null
         }
@@ -121,7 +132,7 @@ source(function () {
       }
       if (found) {
         if (!emitted_collection) {
-          emit.collection(c.rename)
+          emit.collection(c.rename ?? c.name)
           emitted_collection = true
         }
         emit.data(obj)
@@ -129,7 +140,7 @@ source(function () {
     }
 
     if (!emitted_collection) {
-      log2(`${col_alias(c.rename)} was empty, nothing emitted`)
+      log2(`${col_alias(c.rename ?? c.name)} was empty, nothing emitted`)
     }
 
   }
