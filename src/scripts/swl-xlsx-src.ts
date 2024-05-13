@@ -53,7 +53,7 @@ source(function () {
     const s = reader.Sheets[c.name]
     const empty_null = opts.emptynull || c.emptynull
 
-    if ((c.rename ?? c.name)[0] === ".") {
+    if ((c.rename ?? c.name)[0] === "_") {
       continue
     }
     if (!s) {
@@ -102,7 +102,7 @@ source(function () {
       let error_xl_a1: string | null = null
       for (let i = header_column; i < header.length; i++) {
         const head = header[i - header_column]
-        if (head[0] === ".") continue
+        if (head[0] === "_") continue
         const cell = s[`${COLS[i]}${j}`]
         if (cell) {
           obj[head] = cell.v
