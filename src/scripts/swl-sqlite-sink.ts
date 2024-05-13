@@ -42,6 +42,8 @@ function collection_handler(col: Collection, start: any): CollectionHandler {
   let table = col.name
   var columns = col.columns ? col.columns.map(c => c.name) : Object.keys(start)
 
+  // console.error(col)
+
   function _(c: ColumnHelper) { return c.db_type ? ` /* ${c.db_type} */` : "" }
 
   var types = col.columns ? col.columns.map(c =>

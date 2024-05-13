@@ -37,24 +37,28 @@ source(async function pg_source() {
       : await get_all_tables_from_schema(client, opts.schema)
 
     for (let q of queries) {
+
       const cursor = new Cursor(q.query)
       const result = await client.query(cursor) as Cursor & {_result: QueryResultBase}
 
-      const helpers: ColumnHelper[] = result._result.fields.map(f => {
-        const t = types.get(f.dataTypeID)!
-        const res: ColumnHelper = {
-          name: f.name,
-          nullable: true,
-          db_type: t.typname,
-          type: pg_type_to_type(t),
-        }
-        return res
-      })
-
-      emit.collection(q.name, helpers.length ? helpers : undefined)
+      let emitted = false
       let rows: any[] = []
       do {
         rows = await cursor.read(100)
+        if (!emitted) {
+          const helpers: ColumnHelper[] = result._result.fields.map(f => {
+            const t = types.get(f.dataTypeID)!
+            const res: ColumnHelper = {
+              name: f.name,
+              nullable: true,
+              db_type: t.typname,
+              type: pg_type_to_type(t),
+            }
+            return res
+          })
+          emit.collection(q.name, helpers.length ? helpers : undefined)
+          emitted = true
+        }
         for (let r of rows) {
           emit.data(r)
         }
