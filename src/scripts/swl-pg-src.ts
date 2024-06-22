@@ -44,7 +44,7 @@ source(async function pg_source() {
       let emitted = false
       let rows: any[] = []
       do {
-        rows = await cursor.read(100)
+        rows = await cursor.read(10000)
         if (!emitted) {
           const helpers: ColumnHelper[] = result._result.fields.map(f => {
             const t = types.get(f.dataTypeID)!

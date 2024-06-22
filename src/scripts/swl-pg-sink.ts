@@ -245,7 +245,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
           SELECT json_agg(a.attname) as cols
           FROM   pg_index i
           JOIN   pg_attribute a ON a.attrelid = i.indrelid
-          AND a.attnum = ANY(i.indkey)
+            AND a.attnum = ANY(i.indkey)
           WHERE  i.indrelid = '${table}'::regclass
           AND    i.indisprimary;
         `))
