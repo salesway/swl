@@ -333,12 +333,9 @@ if (self_name.includes("sink"))
  * @returns a modified URI with the forwarded port on localhost
  */
 export async function uri_maybe_open_tunnel(uri: string) {
-  const gp = (require("get-port") as typeof import("get-port"))
   const tunnel = require("tunnel-ssh") as typeof import("tunnel-ssh")
   const conf = require("ssh-config")
-  const promisify = (require("util") as typeof import("util")).promisify
 
-  var local_port = await gp()
   var re_tunnel = /([^@:\/]+):(\d+)@@(?:([^@:]+)(?::([^@]+))?@)?([^:/]+)(?::([^\/]+))?/
 
   var match = re_tunnel.exec(uri)
@@ -348,11 +345,10 @@ export async function uri_maybe_open_tunnel(uri: string) {
 
   const [remote_host, remote_port, user, password, host, port] = match.slice(1)
 
-  log1("opening ssh tunnel to", col_table(remote_host + ":" + col_num(remote_port)), "from", col_table("127.0.0.1:" + col_num(local_port)), "through", col_table(host))
   var config: any = {
     host, port: port,
     dstHost: remote_host, dstPort: remote_port,
-    localPort: local_port, localHost: "127.0.0.1"
+    localHost: "127.0.0.1"
   }
 
   if (user) config.username = user
@@ -373,8 +369,23 @@ export async function uri_maybe_open_tunnel(uri: string) {
   if (!config.port) config.port = 22
 
   // Create the tunnel
-  let res = await promisify(tunnel)(config)
-  return { uri: uri.replace(match[0], `127.0.0.1:${local_port}`), tunnel: res }
+  const [srv, _] = await tunnel.createTunnel({
+    autoClose: false
+  }, {
+  }, {
+    agent: process.env.SSH_AUTH_SOCK,
+    username: config.username,
+    host: config.host,
+    port: config.port,
+  }, {
+    dstPort: config.dstPort,
+    dstAddr: config.dstHost,
+  })
+
+  const _port = (srv.address() as AddressInfo).port
+  log1("opening ssh tunnel to", col_table(remote_host + ":" + col_num(remote_port)), "from", col_table("127.0.0.1:" + col_num(_port)), "through", col_table(host))
+
+  return { uri: uri.replace(match[0], `127.0.0.1:${_port}`), tunnel: srv }
 }
 
 
@@ -476,6 +487,7 @@ export let log3 = swl_verbose >= 3 ? log : (...a: any[]) => { }
 
 export { optparser } from "./optparse"
 import { optparser, param, flag, arg } from "./optparse"
+import { AddressInfo } from "net"
 // import { debuglog } from "util"
 
 
