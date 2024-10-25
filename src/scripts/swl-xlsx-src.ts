@@ -7,7 +7,6 @@ import * as xl from "xlsx"
 let collection_flags = optparser(
   param("-r", "--rename").as("rename").help("Rename this collection"),
   flag("-i", "--include").as("include").help("Include columns starting with '.'"),
-  flag("-N", "--empty-null").as("emptynull").help("Empty string is null"),
 )
 
 let collections_opts = optparser(
@@ -44,14 +43,12 @@ source(function () {
     opts.collections = reader.SheetNames.map(s => ({
       name: s,
       rename: s,
-      emptynull: opts.emptynull,
       include: opts.include,
     }))
   }
 
   for (let c of opts.collections) {
     const s = reader.Sheets[c.name]
-    const empty_null = opts.emptynull || c.emptynull
 
     if ((c.rename ?? c.name)[0] === "_") {
       continue
@@ -104,8 +101,9 @@ source(function () {
         const head = header[i - header_column]
         if (head[0] === "_") continue
         const cell = s[`${COLS[i]}${j}`]
+
         if (cell) {
-          obj[head] = cell.v
+          obj[head] = cell.v === "~" ? null : cell.v
           const empty_cell = (cell.v == null || cell.v === "")
           found = found || !empty_cell
 
@@ -114,11 +112,6 @@ source(function () {
             error_xl_a1 = `${COLS[i]}${j}`
             obj[head] = cell.w
             continue
-          }
-
-          if (empty_cell && empty_null && !!cell.f) {
-            // console.error(head, cell)
-            obj[head] = null
           }
 
         } else {
