@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --enable-source-maps
+#!/usr/bin/env -S bun run
 
 import { unflatten } from "flat"
 import { sink, emit, optparser } from "../index"

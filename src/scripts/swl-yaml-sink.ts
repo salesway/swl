@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --enable-source-maps
+#!/usr/bin/env -S bun run
 
 import { log2, sink, Sink, default_opts, } from "../index"
 import { optparser, arg, } from "../optparse"

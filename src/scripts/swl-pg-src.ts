@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --enable-source-maps
+#!/usr/bin/env -S bun run
 
 import { Client as PgClient, QueryResultBase } from 'pg'
 import * as Cursor from "pg-cursor"

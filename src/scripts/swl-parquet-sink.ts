@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --enable-source-maps
+#!/usr/bin/env -S bun run
 import { sink, Sink, } from "../index"
 import { duckdb_sink } from "./duckdb-sink-common"
 

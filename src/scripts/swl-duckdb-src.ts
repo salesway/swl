@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --enable-source-maps
+#!/usr/bin/env -S bun run
 
 import { arg, oneof, optparser } from "../optparse"
 import { log2, emit, source, default_opts, file, default_col_sql_src_opts, Lock, log3 } from "../index"

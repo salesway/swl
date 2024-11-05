@@ -1,9 +1,9 @@
-#!/usr/bin/env -S node --enable-source-maps
+#!/usr/bin/env -S bun run
 
 import { log2, log3, sink, CollectionHandler, Sink, default_opts, col_table, col_num, Collection, ColumnHelper } from "../index"
 import { optparser, arg, oneof, flag } from "../optparse"
 
-import * as DB from "better-sqlite3"
+import DB, { Statement } from "bun:sqlite"
 import { file } from "../debug"
 
 let col_opts = optparser(
@@ -76,7 +76,7 @@ function collection_handler(col: Collection, start: any): CollectionHandler {
     exec(`DELETE FROM "${table}"`)
   }
 
-  let stmt!: DB.Statement
+  let stmt!: Statement
   if (!opts.upsert) {
     const sql = `INSERT INTO "${table}" (${columns.map(c => `"${c}"`).join(", ")})
     values (${columns.map(c => "?").join(", ")})`
@@ -104,7 +104,7 @@ function collection_handler(col: Collection, start: any): CollectionHandler {
     },
     end() {
       if (opts.verbose >= 2) {
-        let s = db.prepare(`select count(*) as cnt from "${table}"`)
+        let s = db.prepare<{cnt: number}, []>(`select count(*) as cnt from "${table}"`)
         log2("table", col_table(table), "now has", col_num(s.all()[0].cnt), "rows")
       }
     }
@@ -112,7 +112,7 @@ function collection_handler(col: Collection, start: any): CollectionHandler {
 }
 
 
-let db = new DB(opts.file, { fileMustExist: false })
+let db = new DB(opts.file, { create: true })
 log2("opened file", file(opts.file), "to write")
 // if (opts.pragma) {
 
@@ -122,8 +122,10 @@ log2("opened file", file(opts.file), "to write")
 // let synchronous = db.pragma("synchronous")
 // let locking_mode = db.pragma("locking_mode")
 // db.pragma("journal_mode = wal")
-db.pragma("journal_mode = wal")
-db.pragma("synchronous = 0")
+db.exec(/* sql */`
+  PRAGMA journal_mode = wal;
+  PRAGMA synchronous = 0;
+`)
 // db.pragma("locking_mode = EXCLUSIVE")
 
 sink((): Sink => {
@@ -139,7 +141,7 @@ sink((): Sink => {
     end() {
       db.exec("COMMIT")
       log2("commited changes")
-      db.pragma("journal_mode = delete")
+      db.exec(/* sql */`PRAGMA journal_mode = delete;`)
       db.close()
     },
   }

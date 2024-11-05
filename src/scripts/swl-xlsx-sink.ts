@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --enable-source-maps
+#!/usr/bin/env -S bun run
 
 import { default_opts, sink } from "../index"
 import { utils, writeFile } from "xlsx"
