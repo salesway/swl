@@ -5,6 +5,7 @@ import * as v8 from "v8"
 import * as fs from "fs"
 import * as tty from "tty"
 import * as path from "path"
+import * as net from "net"
 
 import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error, ColumnHelper } from "./types"
 import { coll, debug, num, c } from "./debug"
@@ -318,7 +319,7 @@ async function sink_handle(handler: Sink) {
 
 
 // The current executable name, used in target: when passing commands and messages.
-export let self_name: string = path.basename(process.argv[1] ?? "").replace(".js", "").replace("swl-", "")
+export let self_name: string = path.basename(process.argv[1] ?? "").replace(/.[jt]s/, "").replace("swl-", "")
 if (self_name.includes("-src"))
   self_name = col_src(self_name.replace("-src", " »"))
 if (self_name.includes("sink"))
@@ -333,7 +334,8 @@ if (self_name.includes("sink"))
  * @returns a modified URI with the forwarded port on localhost
  */
 export async function uri_maybe_open_tunnel(uri: string) {
-  const tunnel = require("tunnel-ssh") as typeof import("tunnel-ssh")
+  const ssh2 = require("node-ssh") as typeof import("node-ssh")
+  // const tunnel = require("tunnel-ssh") as typeof import("tunnel-ssh")
   const conf = require("ssh-config")
 
   var re_tunnel = /([^@:\/]+):(\d+)@@(?:([^@:]+)(?::([^@]+))?@)?([^:/]+)(?::([^\/]+))?/
@@ -368,24 +370,50 @@ export async function uri_maybe_open_tunnel(uri: string) {
 
   if (!config.port) config.port = 22
 
-  // Create the tunnel
-  const [srv, _] = await tunnel.createTunnel({
-    autoClose: false
-  }, {
-  }, {
+  const client = new ssh2.NodeSSH()
+  await client.connect({
     agent: process.env.SSH_AUTH_SOCK,
     username: config.username,
     host: config.host,
     port: config.port,
-  }, {
-    dstPort: config.dstPort,
-    dstAddr: config.dstHost,
   })
 
-  const _port = (srv.address() as AddressInfo).port
-  log1("opening ssh tunnel to", col_table(remote_host + ":" + col_num(remote_port)), "from", col_table("127.0.0.1:" + col_num(_port)), "through", col_table(host))
+  client.connection?.addListener("error", ev => {
+    console.error(ev)
+  })
 
-  return { uri: uri.replace(match[0], `127.0.0.1:${_port}`), tunnel: srv }
+  const server = net.createServer()
+
+  const local_port_promise = new Promise<number>((accept, reject) => {
+    server.on("listening", () => {
+      const address = server.address() as net.AddressInfo
+      accept(address.port)
+    })
+  })
+
+  server.listen(0)
+
+  const local_port = await local_port_promise
+
+  server.on("connection", connection => {
+    connection.pipe(chan).pipe(connection)
+
+    connection.once("end", () => {
+      connection.unpipe(chan)
+      chan.unpipe(connection)
+      chan.close()
+      client.connection?.destroy()
+      client.dispose()
+      server.close()
+    })
+
+  })
+
+  const chan = await client.forwardOut("127.0.0.1", local_port, config.dstHost, config.dstPort)
+
+  log1("opening ssh tunnel to", col_table(remote_host + ":" + col_num(remote_port)), "via", col_table("127.0.0.1:" + col_num(local_port)), "through", col_table(host))
+
+  return { uri: uri.replace(match[0], `127.0.0.1:${local_port}`) }
 }
 
 
@@ -487,8 +515,6 @@ export let log3 = swl_verbose >= 3 ? log : (...a: any[]) => { }
 
 export { optparser } from "./optparse"
 import { optparser, param, flag, arg } from "./optparse"
-import { AddressInfo } from "net"
-// import { debuglog } from "util"
 
 
 const grp = "BASE SWL OPTIONS"

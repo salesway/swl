@@ -1,7 +1,7 @@
 #!/usr/bin/env -S bun run
 
 import { Client as PgClient, QueryResultBase } from 'pg'
-import * as Cursor from "pg-cursor"
+import Cursor from "pg-cursor"
 
 import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src, ColumnHelper, SwlColumnType } from '../index'
 import { optparser, arg, param, oneof } from "../optparse"
@@ -26,9 +26,9 @@ source(async function pg_source() {
   let open = await uri_maybe_open_tunnel(opts.uri)
   let uri = open.uri.startsWith("postgres://") ? open.uri : `postgres://${open.uri}`
 
-  let client = new PgClient(uri)
+  const client = new PgClient(uri)
+
   async function _process() {
-    // log("connected")
 
     const types = await get_types(client)
 
@@ -72,8 +72,7 @@ source(async function pg_source() {
     log1("connected to", col_src(uri))
     await _process()
   } finally {
-    client.end()
-    open.tunnel?.close()
+    await client.end()
   }
 })
 

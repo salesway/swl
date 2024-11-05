@@ -49,7 +49,6 @@ source(async function pg_source() {
     await process()
   } finally {
     client.end()
-    open.tunnel?.close()
   }
 })
 

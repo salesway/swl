@@ -101,7 +101,6 @@ sink(async () => {
       await db.query("ANALYZE")
       log2("disconnecting from database")
       await db.end()
-      await open.tunnel?.close()
     }
   }
 })
