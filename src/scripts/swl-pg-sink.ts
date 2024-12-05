@@ -224,15 +224,18 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
       if (opts.upsert) {
         var cst = (await Q(/* sql */`
           SELECT
-            constraint_name
+            *
           FROM information_schema.table_constraints
           WHERE table_name = '${table_name}' AND constraint_schema = '${schema}'
             AND (constraint_type = 'PRIMARY KEY' OR constraint_type = 'UNIQUE')
           ORDER BY constraint_type
         `))
 
+        // console.log(cst.rows)
         // console.error(cst)
-        upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${cst.rows[0].constraint_name}" DO UPDATE SET ${columns.map(c => `"${c}" = EXCLUDED."${c}"`)} `
+        if (cst.rows.length > 0) {
+          upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${cst.rows[0].constraint_name}" DO UPDATE SET ${columns.map(c => `"${c}" = EXCLUDED."${c}"`)} `
+        }
 
       }
 
