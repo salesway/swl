@@ -4,6 +4,7 @@
   "description": "",
   "main": "src/index.ts",
   "engines": {
+    "node": "*",
     "bun": ">=1.43.0"
   },
   "bin": {
