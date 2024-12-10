@@ -12,6 +12,7 @@ let col_options = optparser(
   flag("-t", "--truncate").as("truncate"),
   flag("-d", "--drop").as("drop"),
   flag("-u", "--upsert").as("upsert"),
+  flag("--do-nothing").as("do_nothing"),
   flag("-U", "--update").as("update"),
 )
 
@@ -28,7 +29,7 @@ let opts_parser = optparser(
   flag("--disable-triggers").as("disable_triggers").help("Disable triggers before loading data"),
   flag("-n", "--notice").as("notice").help("Display NOTICE statements"),
   flag("-y", "--notify").as("notify").help("Display LISTEN/NOTIFY requests"),
-  flag("-i", "--ignore-non-existing").as("ignore_nonexisting").help("Ignore tables that don't exist"),
+  flag("--ignore-non-existing").as("ignore_nonexisting").help("Ignore tables that don't exist"),
   param("-s", "--schema").as("schema").default("public").help("Default schema to analyze when no collections specified"),
   col_options,
   oneof(col_parser).as("collections").repeat(),
@@ -221,7 +222,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
       // primary key constraint name for this table, and use it.
       // Note: we should be able to specify the constraint manually, maybe not just the primary key ?
       let upsert = ""
-      if (opts.upsert) {
+      if (opts.upsert || opts.do_nothing) {
         var cst = (await Q(/* sql */`
           SELECT
             *
@@ -234,7 +235,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
         // console.log(cst.rows)
         // console.error(cst)
         if (cst.rows.length > 0) {
-          upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${cst.rows[0].constraint_name}" DO UPDATE SET ${columns.map(c => `"${c}" = EXCLUDED."${c}"`)} `
+          upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${cst.rows[0].constraint_name}" ${opts.do_nothing ? `DO NOTHING` : `DO UPDATE SET ${columns.map(c => `"${c}" = EXCLUDED."${c}"`)} `}`
         }
 
       }
