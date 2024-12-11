@@ -1,8 +1,8 @@
 #!/usr/bin/env -S bun run
 
 import { unflatten } from "flat"
-import { sink, emit, optparser } from "../index"
-import { flag } from "../optparse"
+import { sink, emit, optparser } from "../src/index"
+import { flag } from "../src/optparse"
 
 const opts_src = optparser(
   // param("-d", "--delimiter").as("delimiter").default(","),

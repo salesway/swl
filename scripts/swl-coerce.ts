@@ -1,8 +1,8 @@
 #!/usr/bin/env -S bun run
 
-import { sink, emit } from '../index'
+import { sink, emit } from '../src/index'
 
-import { optparser, param, } from "../optparse"
+import { optparser, param, } from "../src/optparse"
 
 const opts_src = optparser(
   param("-o", "--only-columns").as("only"),

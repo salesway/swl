@@ -1,7 +1,7 @@
-import { emit, sink } from "../index"
+import { emit, sink } from "../src/index"
 import * as vm from "vm"
 import * as ramda from "ramda"
-import { optparser, arg } from "../optparse"
+import { optparser, arg } from "../src/optparse"
 
 const opts_src = optparser(
   arg("fn").required()

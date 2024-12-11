@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { source, emit, Lock, } from "../index"
-import { optparser, arg, } from "../optparse"
+import { source, emit, Lock, } from "../src/index"
+import { optparser, arg, } from "../src/optparse"
 
 import * as path from "path"
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env -S bun run
 
-import { log2, sink, CollectionHandler, Sink, default_opts, } from "../index"
-import { optparser, arg, flag, param } from "../optparse"
+import { log2, sink, CollectionHandler, Sink, default_opts, } from "../src/index"
+import { optparser, arg, flag, param } from "../src/optparse"
 
 import * as fs from "fs"
 import * as path from "path"
 import * as csv from "fast-csv"
 
-import { file } from "../debug"
+import { file } from "../src/debug"
 
 
 let opts_parser = optparser(

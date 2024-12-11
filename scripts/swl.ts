@@ -4,9 +4,9 @@ import { existsSync } from "fs"
 import { extname, join } from "path"
 import { execSync, } from "child_process"
 import { performance } from "perf_hooks"
-import { col_num, log } from "../index"
+import { col_num, log } from "../src/index"
 
-import { optparser, flag, } from "../optparse"
+import { optparser, flag, } from "../src/optparse"
 import ch from "chalk"
 
 class AliasMap {

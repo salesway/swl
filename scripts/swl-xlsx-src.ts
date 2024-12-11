@@ -1,7 +1,7 @@
 #!/usr/bin/env -S bun run
 
-import { source, emit, log2, col_alias } from "../index"
-import { arg, flag, oneof, optparser, param, } from "../optparse"
+import { source, emit, log2, col_alias } from "../src/index"
+import { arg, flag, oneof, optparser, param, } from "../src/optparse"
 import * as xl from "xlsx"
 
 let collection_flags = optparser(

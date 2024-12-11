@@ -1,6 +1,6 @@
 
 import { default_opts, optparser, sink } from ".."
-import { arg, flag, oneof } from "../optparse"
+import { arg, flag, oneof } from "../src/optparse"
 import { duckdb_sink } from "./duckdb-sink-common"
 
 let col_opts = optparser(

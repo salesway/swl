@@ -10,8 +10,8 @@
         "strict": true,
         "noUnusedLocals": true,
         "skipLibCheck": true,
-        "rootDir": "./src",
         "outDir": "./lib",
+        "baseUrl": "./src",
         "lib": ["es2017", "esnext"],
         "types": ["bun"]
     },

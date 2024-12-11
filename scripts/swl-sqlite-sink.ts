@@ -1,10 +1,10 @@
 #!/usr/bin/env -S bun run
 
-import { log2, log3, sink, CollectionHandler, Sink, default_opts, col_table, col_num, Collection, ColumnHelper } from "../index"
-import { optparser, arg, oneof, flag } from "../optparse"
+import { log2, log3, sink, CollectionHandler, Sink, default_opts, col_table, col_num, Collection, ColumnHelper } from "../src/index"
+import { optparser, arg, oneof, flag } from "../src/optparse"
 
 import DB, { Statement } from "bun:sqlite"
-import { file } from "../debug"
+import { file } from "../src/debug"
 
 let col_opts = optparser(
   flag("-t", "--truncate").as("truncate"),

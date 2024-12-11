@@ -2,8 +2,8 @@
 
 import { readFileSync } from "fs"
 
-import { arg, optparser, param } from "../optparse"
-import { default_opts, emit, source } from '../index'
+import { arg, optparser, param } from "../src/optparse"
+import { default_opts, emit, source } from '../src/index'
 import { parse } from "json5"
 
 let opts = optparser(

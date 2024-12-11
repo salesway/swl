@@ -3,8 +3,8 @@
 import { Client as PgClient, QueryResultBase } from 'pg'
 import Cursor from "pg-cursor"
 
-import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src, ColumnHelper, SwlColumnType } from '../index'
-import { optparser, arg, param, oneof } from "../optparse"
+import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src, ColumnHelper, SwlColumnType } from 'index'
+import { optparser, arg, param, oneof } from "optparse"
 
 
 const opts_src = optparser(

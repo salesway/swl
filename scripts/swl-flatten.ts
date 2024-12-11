@@ -1,7 +1,7 @@
 #!/usr/bin/env -S bun run
 
 import { flatten } from "flat"
-import { sink, emit } from "../index"
+import { sink, emit } from "../src/index"
 
 sink(function () {
   return {

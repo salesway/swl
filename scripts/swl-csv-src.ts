@@ -5,7 +5,7 @@ import * as csv from "fast-csv"
 import * as gzip from "zlib"
 
 import { emit, file, log1, source } from ".."
-import { optparser, arg, param, flag, } from "../optparse"
+import { optparser, arg, param, flag, } from "../src/optparse"
 
 const opts_src = optparser(
   param("-d", "--delimiter").as("delimiter").default(","),

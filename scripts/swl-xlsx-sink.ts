@@ -1,9 +1,9 @@
 #!/usr/bin/env -S bun run
 
-import { default_opts, sink } from "../index"
+import { default_opts, sink } from "../src/index"
 import { utils, writeFile } from "xlsx"
 
-import { arg, flag, optparser } from "../optparse"
+import { arg, flag, optparser } from "../src/optparse"
 
 
 let opts = optparser(

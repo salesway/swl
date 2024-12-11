@@ -1,7 +1,7 @@
 #!/usr/bin/env -S bun run
 
-import { CollectionHandler, log, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts, log1, log3 } from '../index'
-import { optparser, arg, flag, param, oneof } from "../optparse"
+import { CollectionHandler, log, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts, log1, log3 } from '../src/index'
+import { optparser, arg, flag, param, oneof } from "../src/optparse"
 
 import { Client as PgClient, types } from 'pg'
 import { from as copy_from } from 'pg-copy-streams'

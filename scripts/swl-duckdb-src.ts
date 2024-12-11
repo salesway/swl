@@ -1,7 +1,7 @@
 #!/usr/bin/env -S bun run
 
-import { arg, oneof, optparser } from "../optparse"
-import { log2, emit, source, default_opts, file, default_col_sql_src_opts, Lock, log3 } from "../index"
+import { arg, oneof, optparser } from "../src/optparse"
+import { log2, emit, source, default_opts, file, default_col_sql_src_opts, Lock, log3 } from "../src/index"
 import * as DB from "duckdb"
 
 let src_parser = optparser(

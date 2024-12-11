@@ -2,8 +2,8 @@
 
 import { Connection, createConnection } from 'promise-mysql'
 
-import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src } from '../index'
-import { optparser, arg, param, oneof } from "../optparse"
+import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src } from '../src/index'
+import { optparser, arg, param, oneof } from "../src/optparse"
 
 
 const opts_src = optparser(

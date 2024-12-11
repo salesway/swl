@@ -1,5 +1,5 @@
 #!/usr/bin/env -S bun run
-import { sink, Sink, } from "../index"
+import { sink, Sink, } from "../src/index"
 import { duckdb_sink } from "./duckdb-sink-common"
 
 sink(async (): Promise<Sink> => {
