@@ -55,7 +55,7 @@ types.setTypeParser(1082, val => {
 
 sink(async () => {
   log2("connecting to database", col_sink(opts.uri))
-  let open = await uri_maybe_open_tunnel(opts.uri)
+  let open = await uri_maybe_open_tunnel(opts.uri, 5432)
   let uri = open.uri.startsWith("postgres://") ? open.uri : `postgres://${open.uri}`
 
   let db = new PgClient(uri)

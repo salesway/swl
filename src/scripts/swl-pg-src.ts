@@ -23,7 +23,7 @@ const opts = optparser(
  *
  */
 source(async function pg_source() {
-  let open = await uri_maybe_open_tunnel(opts.uri)
+  let open = await uri_maybe_open_tunnel(opts.uri, 5432)
   let uri = open.uri.startsWith("postgres://") ? open.uri : `postgres://${open.uri}`
 
   const client = new PgClient(uri)

@@ -333,12 +333,12 @@ if (self_name.includes("sink"))
  * @param uri: the uri to search the pattern in
  * @returns a modified URI with the forwarded port on localhost
  */
-export async function uri_maybe_open_tunnel(uri: string) {
+export async function uri_maybe_open_tunnel(uri: string, default_port?: number) {
   const ssh2 = require("node-ssh") as typeof import("node-ssh")
   // const tunnel = require("tunnel-ssh") as typeof import("tunnel-ssh")
   const conf = require("ssh-config")
 
-  var re_tunnel = /([^@:\/]+):(\d+)@@(?:([^@:]+)(?::([^@]+))?@)?([^:/]+)(?::([^\/]+))?/
+  var re_tunnel = /([^@:\/]+)(?::(\d+))?@@(?:([^@:]+)(?::([^@]+))?@)?([^:/]+)(?::([^\/]+))?/
 
   var match = re_tunnel.exec(uri)
 
@@ -349,7 +349,7 @@ export async function uri_maybe_open_tunnel(uri: string) {
 
   var config: any = {
     host, port: port,
-    dstHost: remote_host, dstPort: remote_port,
+    dstHost: remote_host, dstPort: remote_port ?? default_port,
     localHost: "127.0.0.1"
   }
 
