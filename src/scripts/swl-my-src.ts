@@ -22,7 +22,7 @@ const opts = optparser(
  *
  */
 source(async function pg_source() {
-  let open = await uri_maybe_open_tunnel(opts.uri)
+  let open = await uri_maybe_open_tunnel(opts.uri, 3306)
   let uri = open.uri.startsWith("mysql://") ? open.uri : `mysql://${open.uri}`
 
   let client = await createConnection(uri)
