@@ -1,5 +1,5 @@
 
-import { default_opts, optparser, sink } from ".."
+import { default_opts, optparser, sink } from "../src"
 import { arg, flag, oneof } from "../src/optparse"
 import { duckdb_sink } from "./duckdb-sink-common"
 

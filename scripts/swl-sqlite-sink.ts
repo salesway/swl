@@ -3,7 +3,7 @@
 import { log2, log3, sink, CollectionHandler, Sink, default_opts, col_table, col_num, Collection, ColumnHelper } from "../src/index"
 import { optparser, arg, oneof, flag } from "../src/optparse"
 
-import DB, { Statement } from "bun:sqlite"
+import * as DB from "better-sqlite3"
 import { file } from "../src/debug"
 
 let col_opts = optparser(
@@ -76,7 +76,7 @@ function collection_handler(col: Collection, start: any): CollectionHandler {
     exec(`DELETE FROM "${table}"`)
   }
 
-  let stmt!: Statement
+  let stmt!: DB.Statement
   if (!opts.upsert) {
     const sql = `INSERT INTO "${table}" (${columns.map(c => `"${c}"`).join(", ")})
     values (${columns.map(c => "?").join(", ")})`
@@ -104,7 +104,7 @@ function collection_handler(col: Collection, start: any): CollectionHandler {
     },
     end() {
       if (opts.verbose >= 2) {
-        let s = db.prepare<{cnt: number}, []>(`select count(*) as cnt from "${table}"`)
+        let s = db.prepare<{cnt: number}, void>(`select count(*) as cnt from "${table}"`)
         log2("table", col_table(table), "now has", col_num(s.all()[0].cnt), "rows")
       }
     }
@@ -112,7 +112,7 @@ function collection_handler(col: Collection, start: any): CollectionHandler {
 }
 
 
-let db = new DB(opts.file, { create: true })
+let db = new DB(opts.file, {  })
 log2("opened file", file(opts.file), "to write")
 // if (opts.pragma) {
 

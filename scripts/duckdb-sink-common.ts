@@ -1,6 +1,6 @@
 
 import * as DB from "duckdb"
-import { CollectionHandler, Lock, Sink, col_table, log2, log3 } from ".."
+import { Collection, Collection, CollectionHandler, Lock, Sink, col_table, log2, log3 } from "../src"
 
 // COMMON
 
@@ -29,9 +29,11 @@ export function duckdb_sink(path: string, opts: DuckDBSinkOptions): Sink {
     await lock.promise
   }
 
-  async function collection_handler(name: string, start: any): Promise<CollectionHandler> {
-    let table = name
+  async function collection_handler(col: Collection, start: any): Promise<CollectionHandler> {
+    const name = col.name
+    let table = col.name
     var columns = Object.keys(start)
+    console.error(col.columns)
 
     var types = columns.map(c => typeof start[c] === "number" ? "int"
     : start[c] instanceof Buffer ? "blob"
@@ -93,7 +95,7 @@ export function duckdb_sink(path: string, opts: DuckDBSinkOptions): Sink {
   db.exec("BEGIN")
   return {
     collection(col, start) {
-      return collection_handler(col.name, start)
+      return collection_handler(col, start)
     },
     error(err) {
       log2("rollbacked")

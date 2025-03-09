@@ -1,10 +1,10 @@
 #!/usr/bin/env -S bun run
 
 import { Client as PgClient, QueryResultBase } from 'pg'
-import Cursor from "pg-cursor"
+import * as Cursor from "pg-cursor"
 
-import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src, ColumnHelper, SwlColumnType } from 'index'
-import { optparser, arg, param, oneof } from "optparse"
+import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src, ColumnHelper, SwlColumnType } from '../src/'
+import { optparser, arg, param, oneof } from "../src/optparse"
 
 
 const opts_src = optparser(
@@ -33,7 +33,7 @@ source(async function pg_source() {
     const types = await get_types(client)
 
     let queries = opts.sources.length ?
-      opts.sources.map(s => ({ name: s.name, query: s.query ?? /* sql */`select * from ${s.name} TBL` }))
+      opts.sources.map(s => ({ name: s.name, query: s.query || /* sql */`select * from ${s.name} TBL` }))
       : await get_all_tables_from_schema(client, opts.schema)
 
     for (let q of queries) {

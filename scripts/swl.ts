@@ -7,7 +7,7 @@ import { performance } from "perf_hooks"
 import { col_num, log } from "../src/index"
 
 import { optparser, flag, } from "../src/optparse"
-import ch from "chalk"
+import * as ch from "chalk"
 
 class AliasMap {
   map = new Map<string, {source: string | null, sink: string | null}>()
@@ -106,13 +106,13 @@ async function figure_out_who(item: string, source: boolean): Promise<string[]> 
   // First figure out if it was named in its alias
   let alv = alias.map.get(item)
   if (alv != null) {
-    return ["bun", "run", source? alv.source ?? "non-existent-source" : alv.sink ?? "non-existent-sink"]
+    return ["node", source? alv.source ?? "non-existent-source" : alv.sink ?? "non-existent-sink"]
   }
 
   let ext = extname(item)
   alv = file_extensions.map.get(ext)
   if (alv != null) {
-    return ["bun", "run", source? alv.source ?? "non-existent-source" : alv.sink ?? "non-existent-sink", item]
+    return ["node", source? alv.source ?? "non-existent-source" : alv.sink ?? "non-existent-sink", item]
   }
 
   let re_protocol = /^[-+a-zA-Z_]+:\/\//
@@ -120,7 +120,7 @@ async function figure_out_who(item: string, source: boolean): Promise<string[]> 
   if (match != null) {
     alv = protocols.map.get(match[0])
     if (alv != null) {
-      return ["bun", "run", source? alv.source ?? "non-existent-source" : alv.sink ?? "non-existent-sink", item]
+      return ["node", source? alv.source ?? "non-existent-source" : alv.sink ?? "non-existent-sink", item]
     }
   }
 
@@ -198,5 +198,5 @@ async function get_commands(cmd: string[]) {
 }
 
 function _(name: string) {
-  return join(__dirname, `swl-${name}.ts`)
+  return join(__dirname, `swl-${name}.js`)
 }

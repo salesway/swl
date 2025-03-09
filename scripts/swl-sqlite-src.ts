@@ -2,7 +2,7 @@
 
 import { arg, oneof, optparser } from "../src/optparse"
 import { log2, emit, source, default_opts, file, default_col_sql_src_opts } from "../src/index"
-import DB from "bun:sqlite"
+import * as DB from "better-sqlite3"
 
 let src_parser = optparser(
   default_col_sql_src_opts,

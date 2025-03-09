@@ -4,7 +4,7 @@ import * as pth from "path"
 import * as csv from "fast-csv"
 import * as gzip from "zlib"
 
-import { emit, file, log1, source } from ".."
+import { emit, file, log1, source } from "../src"
 import { optparser, arg, param, flag, } from "../src/optparse"
 
 const opts_src = optparser(

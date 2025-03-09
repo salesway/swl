@@ -11,7 +11,7 @@ let col_options = optparser(
   flag("-a", "--auto-create").as("auto_create").help("Create table if it didn't exist"),
   flag("-t", "--truncate").as("truncate"),
   flag("-d", "--drop").as("drop"),
-  flag("-u", "--upsert").as("upsert"),
+  param("-u", "--upsert").as("upsert"),
   flag("--do-nothing").as("do_nothing"),
   flag("-U", "--update").as("update"),
 )
@@ -40,7 +40,7 @@ let opts = opts_parser.parse()
 for (let c of opts.collections) {
   if (opts.truncate) c.truncate = true
   if (opts.drop) c.drop = true
-  if (opts.upsert) c.upsert = true
+  if (opts.upsert) c.upsert = opts.upsert
   if (opts.update) c.update = true
   if (opts.auto_create) c.auto_create = true
 }
@@ -222,7 +222,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
       // primary key constraint name for this table, and use it.
       // Note: we should be able to specify the constraint manually, maybe not just the primary key ?
       let upsert = ""
-      if (opts.upsert || opts.do_nothing) {
+      if (opts.upsert != null || opts.do_nothing) {
         var cst = (await Q(/* sql */`
           SELECT
             *
@@ -235,7 +235,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
         // console.log(cst.rows)
         // console.error(cst)
         if (cst.rows.length > 0) {
-          upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${cst.rows[0].constraint_name}" ${opts.do_nothing ? `DO NOTHING` : `DO UPDATE SET ${columns.map(c => `"${c}" = EXCLUDED."${c}"`)} `}`
+          upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${opts.upsert || cst.rows[0].constraint_name}" ${opts.do_nothing ? `DO NOTHING` : `DO UPDATE SET ${columns.map(c => `"${c}" = EXCLUDED."${c}"`)} `}`
         }
 
       }

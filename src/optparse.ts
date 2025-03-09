@@ -169,7 +169,7 @@ export function param(...activators: string[]) {
         },
         function (args) {
           if (args.length > 1) return new MatchError(`"${activators}" can only appear once`)
-          return args[0]?.[1] as string | undefined
+          return args[0]?.[1] ?? "" as string | undefined
         },
         { key, activators },
       )
