@@ -26,8 +26,9 @@ source(function () {
   // A special context for the code being evaled by !!e
   let context = {}
   createContext(context)
+  const all2: Type[] = all.map((type: any) => new Type(type.tag, type.options))
 
-  const schema = DEFAULT_SCHEMA.extend([
+  const types = [
     new Type('tag:yaml.org,2002:e', {
       kind: 'scalar',
       resolve: () => true,
@@ -41,8 +42,10 @@ source(function () {
       predicate: () => false,
       represent: () => undefined,
     }),
-    ...all
-  ])
+    ...all2
+  ]
+
+  const schema = DEFAULT_SCHEMA.extend(types)
 
   let parsed: object | any[] = load(contents, { filename: opts.file, schema }) as any
   if (Array.isArray(parsed)) {
