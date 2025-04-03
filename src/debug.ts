@@ -1,4 +1,4 @@
-import * as ch from 'chalk'
+import ch from 'chalk'
 import { col_error } from '.'
 import { Chunk, ChunkType, chunk_is_collection, chunk_is_data, chunk_is_error, ErrorChunk } from './types'
 

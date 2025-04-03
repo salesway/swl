@@ -16,7 +16,7 @@
 */
 
 import * as pth from "path"
-import * as ch from "chalk"
+import ch from "chalk"
 
 type unionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never;
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S bun run
 
-import { default_opts, sink } from "../src/index"
-import { utils, writeFile } from "xlsx"
+import { default_opts, log, sink } from "../src/index"
+import { utils, writeFile, readFile } from "xlsx"
 
 import { arg, flag, optparser } from "../src/optparse"
 
@@ -16,7 +16,13 @@ let opts = optparser(
 if (!opts.file) throw new Error(`xlsx needs a file argument`)
 
 sink(function () {
+
   let wb = utils.book_new()
+  try {
+    // try to load if it exists
+    wb = readFile(opts.file)
+    log("opened existing file")
+  } catch { }
 
   return {
     collection(col) {
@@ -32,6 +38,10 @@ sink(function () {
           all_data.push(data)
         },
         end() {
+          if (wb.Sheets[col.name]) {
+            delete wb.Sheets[col.name]
+            wb.SheetNames = wb.SheetNames.filter(s => s !== col.name)
+          }
           utils.book_append_sheet(
             wb,
             utils.json_to_sheet(all_data),

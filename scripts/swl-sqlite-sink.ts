@@ -3,7 +3,7 @@
 import { log2, log3, sink, CollectionHandler, Sink, default_opts, col_table, col_num, Collection, ColumnHelper } from "../src/index"
 import { optparser, arg, oneof, flag } from "../src/optparse"
 
-import * as DB from "better-sqlite3"
+import { Database, Statement } from "bun:sqlite"
 import { file } from "../src/debug"
 
 let col_opts = optparser(
@@ -76,7 +76,7 @@ function collection_handler(col: Collection, start: any): CollectionHandler {
     exec(`DELETE FROM "${table}"`)
   }
 
-  let stmt!: DB.Statement
+  let stmt!: Statement
   if (!opts.upsert) {
     const sql = `INSERT INTO "${table}" (${columns.map(c => `"${c}"`).join(", ")})
     values (${columns.map(c => "?").join(", ")})`
@@ -112,7 +112,7 @@ function collection_handler(col: Collection, start: any): CollectionHandler {
 }
 
 
-let db = new DB(opts.file, {  })
+let db = new Database(opts.file, { create: true })
 log2("opened file", file(opts.file), "to write")
 // if (opts.pragma) {
 

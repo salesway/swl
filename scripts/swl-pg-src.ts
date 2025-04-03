@@ -1,7 +1,7 @@
 #!/usr/bin/env -S bun run
 
 import { Client as PgClient, QueryResultBase } from 'pg'
-import * as Cursor from "pg-cursor"
+import Cursor from "pg-cursor"
 
 import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src, ColumnHelper, SwlColumnType } from '../src/'
 import { optparser, arg, param, oneof } from "../src/optparse"

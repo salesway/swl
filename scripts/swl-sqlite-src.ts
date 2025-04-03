@@ -2,7 +2,7 @@
 
 import { arg, oneof, optparser } from "../src/optparse"
 import { log2, emit, source, default_opts, file, default_col_sql_src_opts } from "../src/index"
-import * as DB from "better-sqlite3"
+import { Database } from "bun:sqlite"
 
 let src_parser = optparser(
   default_col_sql_src_opts,
@@ -18,7 +18,7 @@ let opts = opt_parser.parse()
 
 
 source(() => {
-  let db = new DB(opts.file, {readonly: true, create: false })
+  let db = new Database(opts.file, {readonly: true, create: false })
   log2("opened file", file(opts.file), "to read")
   var sources = opts.collections
 
@@ -28,11 +28,11 @@ source(() => {
     const st = db.prepare<{name: string}, []>(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_stat%'`)
 
 
-    sources = st.all().map(r => ({name: r.name, query: undefined, rename: ""}))
+    sources = st.all().map(r => ({name: r.name, query: "", rename: ""}))
   }
 
   for (var source of sources) {
-    var sql = source.query ?? `SELECT * FROM "${source.name}"`
+    var sql = source.query || `SELECT * FROM "${source.name}"`
 
     var stmt = db.prepare(sql)
 
