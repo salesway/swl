@@ -50,7 +50,7 @@ source(function () {
   for (let c of opts.collections) {
     const s = reader.Sheets[c.name]
 
-    if ((c.rename ?? c.name)[0] === "_") {
+    if ((c.rename || c.name)[0] === "_") {
       continue
     }
     if (!s) {
