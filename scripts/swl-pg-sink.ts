@@ -11,7 +11,7 @@ let col_options = optparser(
   flag("-a", "--auto-create").as("auto_create").help("Create table if it didn't exist"),
   flag("-t", "--truncate").as("truncate"),
   flag("-d", "--drop").as("drop"),
-  param("-u", "--upsert").as("upsert"),
+  flag("-u", "--upsert").as("upsert"),
   flag("--do-nothing").as("do_nothing"),
   flag("-U", "--update").as("update"),
 )
@@ -233,9 +233,8 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
         `))
 
         // console.log(cst.rows)
-        // console.error(cst)
         if (cst.rows.length > 0) {
-          upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${opts.upsert || cst.rows[0].constraint_name}" ${opts.do_nothing ? `DO NOTHING` : `DO UPDATE SET ${columns.map(c => `"${c}" = EXCLUDED."${c}"`)} `}`
+          upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${typeof opts.upsert === "string" ? opts.upsert : cst.rows[0].constraint_name}" ${opts.do_nothing ? `DO NOTHING` : `DO UPDATE SET ${columns.map(c => `"${c}" = EXCLUDED."${c}"`)} `}`
         }
 
       }
