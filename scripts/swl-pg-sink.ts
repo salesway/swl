@@ -87,6 +87,8 @@ sink(async () => {
         log1("disabling triggers")
         await db.query(/* sql */ `SET session_replication_role = replica;`)
       }
+
+      await db.query("BEGIN")
     },
 
     async collection(col, first) {
@@ -97,6 +99,12 @@ sink(async () => {
       await db.query("COMMIT")
       log2("commited changes")
     },
+
+    async error() {
+      await db.query("ROLLBACK")
+      log2("rolled back changes")
+    },
+
     async finally() {
       log2("running analyze")
       await db.query("ANALYZE")
