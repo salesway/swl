@@ -30,7 +30,7 @@ source(async () => {
     const lock = new Lock<void>()
 
     stmt.each(file, (_, row) => {
-      emit.data(row)
+      emit.data({...row})
     })
 
     stmt.finalize(() => {
