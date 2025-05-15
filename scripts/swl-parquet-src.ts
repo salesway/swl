@@ -19,7 +19,7 @@ source(async () => {
 
   for (let file of files) {
     const db = new DB.Database(":memory:")
-    let collection = path.basename(file).replace(/-\d+\.[^\.]*$/, '')
+    let collection = path.basename(file).replace(/(-\d*)?\.[^\.]*$/, '')
 
     if (prev_collection !== collection) {
       await emit.collection(collection)
