@@ -33,7 +33,12 @@ source(async function pg_source() {
     const types = await get_types(client)
 
     let queries = opts.sources.length ?
-      opts.sources.map(s => ({ name: s.name, query: s.query || /* sql */`select * from ${s.name} TBL` }))
+      (await Promise.all(opts.sources.map(async s => {
+        if (s.name.endsWith(".*")) {
+          return await get_all_tables_from_schema(client, s.name.slice(0, -2))
+        }
+        return [{ name: s.name, query: s.query || /* sql */`select * from ${s.name} TBL` }]
+      }))).flat()
       : await get_all_tables_from_schema(client, opts.schema)
 
     for (let q of queries) {
