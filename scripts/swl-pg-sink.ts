@@ -5,6 +5,7 @@ import { optparser, arg, flag, param, oneof } from "../src/optparse"
 
 import { Client as PgClient, types } from 'pg'
 import { from as copy_from } from 'pg-copy-streams'
+import * as json from "json-bigint"
 
 let col_options = optparser(
   flag("-n", "--table-name").as("table_name").help("Specify a different table name than the collection name"),
@@ -214,7 +215,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
           // console.error(data[col])
         }
       }
-      const payload = '@' + JSON.stringify(data).replace(/@/g, '@@') + '@\n'
+      const payload = '@' + json.stringify(data).replace(/@/g, '@@') + '@\n'
       // console.error(payload)
       if (!stream.write(payload)) {
         drain_lock = new Lock()
