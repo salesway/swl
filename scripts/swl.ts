@@ -189,11 +189,8 @@ async function get_commands(cmd: string[]) {
     builder = [...builder, ...c.command]
   }
 
-  // console.log(builder)
   return builder.map(b => {
-    if (b.includes(" ") || b.includes(";") || b.includes('"'))
-      b = `'${b.replace("\'", "\\\'")}'`
-    return b
+    return b === "|" ? b: `"${b}"`
   }).join(" ")
 }
 
