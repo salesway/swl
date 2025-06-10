@@ -46,6 +46,8 @@ for (let c of opts.collections) {
   if (opts.auto_create) c.auto_create = true
 }
 
+const colls_options = new Map(opts.collections.map(c => [c.name, c]))
+
 
 // Date type, don't remember if this is essential or not.
 types.setTypeParser(1082, val => {
@@ -139,14 +141,17 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
     return await db.query(sql, args)
   }
 
+
+  const col_opts = colls_options.get(col.name)
+
   if (!seen.has(col.name)) {
 
-    if (opts.drop) {
+    if (col_opts?.drop ?? opts.drop) {
       await Q(/* sql */`DROP TABLE IF EXISTS ${table}`)
     }
 
     // Create the table if it didn't exist
-    if (opts.auto_create) {
+    if (col_opts?.auto_create ?? opts.auto_create) {
       await Q(/* sql */`
         CREATE TABLE IF NOT EXISTS ${table} (
           ${columns.map((c, i) => `"${c}" text`).join(', ')}
@@ -154,7 +159,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
       `)
     }
 
-    if (opts.truncate) {
+    if (col_opts?.truncate ?? opts.truncate) {
       log2(`truncating ${table}`)
       await Q(/* sql */`TRUNCATE ${table} CASCADE`)
     }
@@ -231,7 +236,7 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
       // primary key constraint name for this table, and use it.
       // Note: we should be able to specify the constraint manually, maybe not just the primary key ?
       let upsert = ""
-      if (opts.upsert != null || opts.do_nothing) {
+      if (col_opts?.upsert || !!opts.upsert || opts.do_nothing) {
         var cst = (await Q(/* sql */`
           SELECT
             *
