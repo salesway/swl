@@ -19,6 +19,7 @@ export const col_alias = c.rgb(111, 111, 111)
 export const col_table = c.rgb(14, 130, 130)
 export const col_error = c.rgb(240, 14, 14).bold
 export const col_num = num
+export const col_updated = c.rgb(255, 199, 50).bold // yellow
 
 export function log(...a: any[]) {
   console.error(self_name, ...a)

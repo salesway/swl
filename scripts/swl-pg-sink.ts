@@ -1,6 +1,6 @@
 #!/usr/bin/env -S bun run
 
-import { CollectionHandler, log, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts, log1, log3 } from '../src/index'
+import { CollectionHandler, log, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts, log1, log3, col_num, col_table, col_updated } from '../src/index'
 import { optparser, arg, flag, param, oneof } from "../src/optparse"
 
 import { Client as PgClient, types } from 'pg'
@@ -135,7 +135,6 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
   if (table.includes("."))
     [schema, table_name] = table.split(".")
 
-
   async function Q(sql: string, args?: any[]) {
     log3(sql)
     return await db.query(sql, args)
@@ -144,14 +143,25 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
 
   const col_opts = colls_options.get(col.name)
 
+  const options = {
+    upsert: col_opts?.upsert || opts.upsert,
+    do_nothing: col_opts?.do_nothing || opts.do_nothing,
+    update: col_opts?.update || opts.update,
+    auto_create: col_opts?.auto_create || opts.auto_create,
+    drop: col_opts?.drop || opts.drop,
+    truncate: col_opts?.truncate || opts.truncate,
+  }
+
   if (!seen.has(col.name)) {
 
-    if (col_opts?.drop ?? opts.drop) {
+    if (options.drop) {
+      log(`dropping ${col_table(table)}`)
       await Q(/* sql */`DROP TABLE IF EXISTS ${table}`)
     }
 
     // Create the table if it didn't exist
-    if (col_opts?.auto_create ?? opts.auto_create) {
+    if (options.auto_create) {
+      log(`creating ${col_table(table)}`)
       await Q(/* sql */`
         CREATE TABLE IF NOT EXISTS ${table} (
           ${columns.map((c, i) => `"${c}" text`).join(', ')}
@@ -159,9 +169,9 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
       `)
     }
 
-    if (col_opts?.truncate ?? opts.truncate) {
-      log2(`truncating ${table}`)
-      await Q(/* sql */`TRUNCATE ${table} CASCADE`)
+    if (options.truncate) {
+      const res = await Q(/* sql */`TRUNCATE ${table} RESTART IDENTITY  CASCADE`)
+      log(`${col_table(table)}: ${col_num(res.rowCount)} rows truncated`)
     }
 
     seen.add(col.name)
@@ -278,20 +288,30 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
           ) T
           WHERE ${pk_columns.map(col => `(T.rec)."${col}" = ${table}."${col}"`).join(" AND ")}
         `)
-        log2(res.rowCount, "rows updated")
+        log(`${col_table(table)}: ${col_num(res.rowCount)} rows updated`)
         // console.error(res)
         // console.error(pk.rows[0].cols)
         // update = /* sql */ `UPDATE ${table}(${})`
       } else {
         const res = await Q(/* sql */`
-          INSERT INTO ${table}(${columns.map(c => `"${c}"`).join(', ')}) (
+          WITH upsert AS (INSERT INTO ${table}(${columns.map(c => `"${c}"`).join(', ')}) (
             SELECT ${columns.map(c => 'R."' + c + '"').join(', ')}
             FROM ${temp_table_name} T,
               json_populate_record(null::${table}, T.jsondata) R
           )
           ${upsert}
+          RETURNING xmax = 0 as inserted)
+          SELECT
+            COUNT(*) FILTER (WHERE inserted) AS num_inserted,
+            COUNT(*) FILTER (WHERE NOT inserted) AS num_updated
+          FROM upsert
         `)
-        log2(res.rowCount, "rows inserted")
+        const rows = res.rows[0]
+        if (options.upsert) {
+          log(`${col_table(table)}: ${rows.num_inserted > 0 ? col_num(rows.num_inserted) : "no"} rows inserted, ${rows.num_updated > 0 ? col_updated(rows.num_updated) : "no"} rows updated`)
+        } else {
+          log(`${col_table(table)}: ${col_num(rows.num_inserted)} rows inserted`)
+        }
       }
 
       // Drop the temporary table
