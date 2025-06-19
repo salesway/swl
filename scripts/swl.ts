@@ -190,7 +190,7 @@ async function get_commands(cmd: string[]) {
   }
 
   return builder.map(b => {
-    return b === "|" ? b: `"${b}"`
+    return b === "|" ? b: `"${b.replace(/["]/g, m => "\\" + m)}"`
   }).join(" ")
 }
 
