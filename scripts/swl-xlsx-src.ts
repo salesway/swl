@@ -6,6 +6,7 @@ import * as xl from "xlsx"
 
 let collection_flags = optparser(
   param("-r", "--rename").as("rename").help("Rename this collection"),
+  flag("-e", "--ignore-errors").as("ignore_errors").help("Ignore errors"),
   flag("-i", "--include").as("include").help("Include columns starting with '.'"),
 )
 
@@ -44,6 +45,7 @@ source(function () {
       name: s,
       rename: s,
       include: opts.include,
+      ignore_errors: opts.ignore_errors,
     }))
   }
 
@@ -108,6 +110,10 @@ source(function () {
           found = found || !empty_cell
 
           if (cell.t === "e") {
+            if (c.ignore_errors) {
+              obj[head] = null
+              continue
+            }
             error = head
             error_xl_a1 = `${COLS[i]}${j}`
             obj[head] = cell.w
