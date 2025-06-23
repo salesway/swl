@@ -148,8 +148,6 @@ async function get_commands(cmd: string[]) {
       } else if (item === "++") {
         command = []
         commands.push({source: true, command})
-      } else if (item.includes("|")) {
-        command.push(item.replace(/\|/g, '\\|'))
       } else {
         command.push(item)
       }
