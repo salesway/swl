@@ -26,6 +26,8 @@ source(async function pg_source() {
   let uri = open.uri.startsWith("mysql://") ? open.uri : `mysql://${open.uri}`
 
   let client = await createConnection(uri)
+  log1("connected to", col_src(uri))
+
   async function process() {
     // log("connected")
 
