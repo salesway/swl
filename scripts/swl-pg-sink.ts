@@ -1,39 +1,74 @@
 #!/usr/bin/env -S bun run
 
-import { CollectionHandler, log, sink, uri_maybe_open_tunnel, Lock, Collection, log2, col_sink, default_opts, log1, log3, col_num, col_table, col_updated } from '../src/index'
+import {
+  CollectionHandler,
+  log,
+  sink,
+  uri_maybe_open_tunnel,
+  Lock,
+  Collection,
+  log2,
+  col_sink,
+  default_opts,
+  log1,
+  log3,
+  col_num,
+  col_table,
+  col_updated,
+} from "../src/index"
 import { optparser, arg, flag, param, oneof } from "../src/optparse"
 
-import { Client as PgClient, types } from 'pg'
-import { from as copy_from } from 'pg-copy-streams'
+import { Client as PgClient, QueryResult, QueryResultRow, types } from "pg"
+import { from as copy_from } from "pg-copy-streams"
 import * as json from "json-bigint"
 
+type Index = {
+  indexname: string
+  tablename: string
+  schemaname: string
+  indexdef: string
+  tablespace: string
+}
+
 let col_options = optparser(
-  flag("-n", "--table-name").as("table_name").help("Specify a different table name than the collection name"),
-  flag("-a", "--auto-create").as("auto_create").help("Create table if it didn't exist"),
+  flag("-n", "--table-name")
+    .as("table_name")
+    .help("Specify a different table name than the collection name"),
+  flag("-a", "--auto-create")
+    .as("auto_create")
+    .help("Create table if it didn't exist"),
   flag("-t", "--truncate").as("truncate"),
   flag("-d", "--drop").as("drop"),
   flag("-u", "--upsert").as("upsert"),
   flag("--do-nothing").as("do_nothing"),
   flag("-U", "--update").as("update"),
+  flag("-i", "--drop-indexes").as("drop_indexes")
 )
 
-let col_parser = optparser(
-  arg("name"),
-  col_options
-)
+let col_parser = optparser(arg("name"), col_options)
 
 let opts_parser = optparser(
   arg("uri").required().help("a postgres uri to connect to"),
-  flag("-a", "--auto-create").as("auto_create").default(false).help("Create table if it didn't exist"),
+  flag("-a", "--auto-create")
+    .as("auto_create")
+    .default(false)
+    .help("Create table if it didn't exist"),
   default_opts,
 
-  flag("--disable-triggers").as("disable_triggers").help("Disable triggers before loading data"),
+  flag("--disable-triggers")
+    .as("disable_triggers")
+    .help("Disable triggers before loading data"),
   flag("-n", "--notice").as("notice").help("Display NOTICE statements"),
   flag("-y", "--notify").as("notify").help("Display LISTEN/NOTIFY requests"),
-  flag("--ignore-non-existing").as("ignore_nonexisting").help("Ignore tables that don't exist"),
-  param("-s", "--schema").as("schema").default("public").help("Default schema to analyze when no collections specified"),
+  flag("--ignore-non-existing")
+    .as("ignore_nonexisting")
+    .help("Ignore tables that don't exist"),
+  param("-s", "--schema")
+    .as("schema")
+    .default("public")
+    .help("Default schema to analyze when no collections specified"),
   col_options,
-  oneof(col_parser).as("collections").repeat(),
+  oneof(col_parser).as("collections").repeat()
 )
 
 let opts = opts_parser.parse()
@@ -46,26 +81,25 @@ for (let c of opts.collections) {
   if (opts.auto_create) c.auto_create = true
 }
 
-const colls_options = new Map(opts.collections.map(c => [c.name, c]))
-
+const colls_options = new Map(opts.collections.map((c) => [c.name, c]))
 
 // Date type, don't remember if this is essential or not.
-types.setTypeParser(1082, val => {
+types.setTypeParser(1082, (val) => {
   // var d = new Date(val)
   return val
 })
 
-
 sink(async () => {
   log2("connecting to database", col_sink(opts.uri))
   let open = await uri_maybe_open_tunnel(opts.uri, 5432)
-  let uri = open.uri.startsWith("postgres://") ? open.uri : `postgres://${open.uri}`
+  let uri = open.uri.startsWith("postgres://")
+    ? open.uri
+    : `postgres://${open.uri}`
 
   let db = new PgClient(uri)
   const seen_collections = new Set<string>()
 
   return {
-
     // Setup the database and some global options, such as displaying notices
     async init() {
       await db.connect()
@@ -73,15 +107,18 @@ sink(async () => {
 
       // Display notice
       if (opts.notice) {
-        db.on("notice", notice => {
+        db.on("notice", (notice) => {
           log(`NOTICE ${notice.severity}: ${notice.message}`)
         })
       }
 
       // Display notify
       if (opts.notify) {
-        db.on("notification", notification => {
-          log(`NOTIFY ${notification.channel}:${notification.processId}: `, notification.payload)
+        db.on("notification", (notification) => {
+          log(
+            `NOTIFY ${notification.channel}:${notification.processId}: `,
+            notification.payload
+          )
         })
       }
 
@@ -113,14 +150,18 @@ sink(async () => {
       await db.query("ANALYZE")
       log2("disconnecting from database")
       await db.end()
-    }
+    },
   }
 })
 
-async function collection_handler(db: PgClient, col: Collection, first: any, seen: Set<string>): Promise<CollectionHandler> {
-
+async function collection_handler(
+  db: PgClient,
+  col: Collection,
+  first: any,
+  seen: Set<string>
+): Promise<CollectionHandler> {
   const table = col.name
-  const temp_table_name = `${table.replace('.', '__')}_temp`
+  const temp_table_name = `${table.replace(".", "__")}_temp`
   const columns = Object.keys(first)
   let hstore_columns: string[] | undefined = undefined
   // var types = columns.map(c => typeof first[c] === 'number' ? 'real'
@@ -132,14 +173,15 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
   // Figure out if the input name is dotted or not. If not, then use "public" ?
   let schema = opts.schema
   let table_name = table
-  if (table.includes("."))
-    [schema, table_name] = table.split(".")
+  if (table.includes(".")) [schema, table_name] = table.split(".")
 
-  async function Q(sql: string, args?: any[]) {
+  async function Q<T extends QueryResultRow = QueryResultRow>(
+    sql: string,
+    args?: any[]
+  ): Promise<QueryResult<T>> {
     log3(sql)
     return await db.query(sql, args)
   }
-
 
   const col_opts = colls_options.get(col.name)
 
@@ -150,27 +192,48 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
     auto_create: col_opts?.auto_create || opts.auto_create,
     drop: col_opts?.drop || opts.drop,
     truncate: col_opts?.truncate || opts.truncate,
+    drop_indexes: col_opts?.drop_indexes || opts.drop_indexes,
+  }
+
+  let indices: Index[] = []
+  if (options.drop_indexes) {
+    indices = (
+      await Q<Index>(
+        /* sql */ `
+      SELECT *
+      FROM pg_indexes
+      WHERE tablename = $1 AND schemaname = $2
+    `,
+        [table_name, schema]
+      )
+    ).rows
+
+    for (let index of indices) {
+      log(`dropping index ${index.indexname}`)
+      await Q(`drop index "${index.schemaname}"."${index.indexname}"`)
+    }
   }
 
   if (!seen.has(col.name)) {
-
     if (options.drop) {
       log(`dropping ${col_table(table)}`)
-      await Q(/* sql */`DROP TABLE IF EXISTS ${table}`)
+      await Q(/* sql */ `DROP TABLE IF EXISTS ${table}`)
     }
 
     // Create the table if it didn't exist
     if (options.auto_create) {
       log(`creating ${col_table(table)}`)
-      await Q(/* sql */`
+      await Q(/* sql */ `
         CREATE TABLE IF NOT EXISTS ${table} (
-          ${columns.map((c, i) => `"${c}" text`).join(', ')}
+          ${columns.map((c, i) => `"${c}" text`).join(", ")}
         )
       `)
     }
 
     if (options.truncate) {
-      const res = await Q(/* sql */`TRUNCATE ${table} RESTART IDENTITY  CASCADE`)
+      const res = await Q(
+        /* sql */ `TRUNCATE ${table} RESTART IDENTITY  CASCADE`
+      )
       log(`${col_table(table)}: ${col_num(res.rowCount)} rows truncated`)
     }
 
@@ -179,19 +242,22 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
   // Create a temporary table that will receive all the data through pg COPY
   // command. This table will hold plain json objects
   // log2("Creating temp table", temp_table_name)
-  await Q(/* sql */`
+  await Q(/* sql */ `
     CREATE TEMP TABLE ${temp_table_name} (
       jsondata json
     )
   `)
 
   // Figure out if we have some hstore columns, which will need to be rebuilt
-  let hstore_columns_query = await Q(/* sql */`
+  let hstore_columns_query = await Q(
+    /* sql */ `
     SELECT
       json_agg(column_name) as hstore_columns
     FROM information_schema.columns
     WHERE table_name = $2 AND table_schema = $1 AND udt_name = 'hstore'
-  `, [schema, table_name])
+  `,
+    [schema, table_name]
+  )
 
   hstore_columns = hstore_columns_query.rows[0]?.hstore_columns
 
@@ -200,22 +266,24 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
   // This is because we will then use the fantastic json_populate_record to
   // actually create the rows when inserting.
   // Which means that old versions of postgres are *not* supported by this sink.
-  let stream: NodeJS.WritableStream = await db.query(
-    copy_from(/* sql */`COPY ${temp_table_name}(jsondata) FROM STDIN
+  let stream: NodeJS.WritableStream = (await db.query(
+    copy_from(/* sql */ `COPY ${temp_table_name}(jsondata) FROM STDIN
       WITH
-      (NULL '**NULL**', DELIMITER '|', FORMAT csv, QUOTE '@')`
+      (NULL '**NULL**', DELIMITER '|', FORMAT csv, QUOTE '@')`)
   )) as any
 
   let drain_lock: Lock<void> | null = null
-  stream.on("drain", _ => {
+  stream.on("drain", (_) => {
     drain_lock?.resolve()
   })
-  stream.on("finish", _ => {
+  stream.on("finish", (_) => {
     log3("stream ended")
   })
 
   const hstore_len = hstore_columns?.length ?? 0
-  function hstore_quote(s: string) { return s.replace(/["\\]/g, m => "\\" + m) }
+  function hstore_quote(s: string) {
+    return s.replace(/["\\]/g, (m) => "\\" + m)
+  }
 
   return {
     async data(data) {
@@ -223,14 +291,18 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
         for (let i = 0; i < hstore_len; i++) {
           const col = hstore_columns![i]
           const dt = data[col]
-          if (dt == null || typeof data[hstore_columns![i]] === "string") continue
+          if (dt == null || typeof data[hstore_columns![i]] === "string")
+            continue
           // transform the object into an hstore compliant string
           data[col] = Object.getOwnPropertyNames(dt)
-            .map(name => `"${hstore_quote(name)}"=>"${hstore_quote(dt[name])}"`).join(",")
+            .map(
+              (name) => `"${hstore_quote(name)}"=>"${hstore_quote(dt[name])}"`
+            )
+            .join(",")
           // console.error(data[col])
         }
       }
-      const payload = '@' + json.stringify(data).replace(/@/g, '@@') + '@\n'
+      const payload = "@" + json.stringify(data).replace(/@/g, "@@") + "@\n"
       // console.error(payload)
       if (!stream.write(payload)) {
         drain_lock = new Lock()
@@ -247,55 +319,68 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
       // Note: we should be able to specify the constraint manually, maybe not just the primary key ?
       let upsert = ""
       if (col_opts?.upsert || !!opts.upsert || opts.do_nothing) {
-        var cst = (await Q(/* sql */`
+        var cst = await Q(/* sql */ `
           SELECT
             *
           FROM information_schema.table_constraints
           WHERE table_name = '${table_name}' AND constraint_schema = '${schema}'
             AND (constraint_type = 'PRIMARY KEY' OR constraint_type = 'UNIQUE')
           ORDER BY constraint_type
-        `))
+        `)
 
         // console.log(cst.rows)
         if (cst.rows.length > 0) {
-          upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${typeof opts.upsert === "string" ? opts.upsert : cst.rows[0].constraint_name}" ${opts.do_nothing ? `DO NOTHING` : `DO UPDATE SET ${columns.map(c => `"${c}" = EXCLUDED."${c}"`)} `}`
+          upsert = /* sql */ ` ON CONFLICT ON CONSTRAINT "${
+            typeof opts.upsert === "string"
+              ? opts.upsert
+              : cst.rows[0].constraint_name
+          }" ${
+            opts.do_nothing
+              ? `DO NOTHING`
+              : `DO UPDATE SET ${columns.map(
+                  (c) => `"${c}" = EXCLUDED."${c}"`
+                )} `
+          }`
         }
-
       }
 
       // Now we have enough information to actually perform the INSERT statement
       // log2("Inserting data into", table, "from temp table")
 
       if (opts.update) {
-        let pk: {rows: {cols: string[]}[]} = (await Q(/* sql */`
+        let pk: { rows: { cols: string[] }[] } = await Q(/* sql */ `
           SELECT json_agg(a.attname) as cols
           FROM   pg_index i
           JOIN   pg_attribute a ON a.attrelid = i.indrelid
             AND a.attnum = ANY(i.indkey)
           WHERE  i.indrelid = '${table}'::regclass
           AND    i.indisprimary;
-        `))
+        `)
         let pk_columns = pk.rows[0].cols
 
-        const res = await Q(/* sql */`
+        const res = await Q(/* sql */ `
           UPDATE ${table}
-            SET ${columns.filter(col => pk_columns.indexOf(col) === -1)
-              .map(col => `"${col}" = (T.rec)."${col}"`)
-              .join(", ")
-            }
+            SET ${columns
+              .filter((col) => pk_columns.indexOf(col) === -1)
+              .map((col) => `"${col}" = (T.rec)."${col}"`)
+              .join(", ")}
           FROM (
             SELECT json_populate_record(null::${table}, T.jsondata) rec FROM ${temp_table_name} T
           ) T
-          WHERE ${pk_columns.map(col => `(T.rec)."${col}" = ${table}."${col}"`).join(" AND ")}
+          WHERE ${pk_columns
+            .map((col) => `(T.rec)."${col}" = ${table}."${col}"`)
+            .join(" AND ")}
         `)
         log(`${col_table(table)}: ${col_num(res.rowCount)} rows updated`)
         // console.error(res)
         // console.error(pk.rows[0].cols)
         // update = /* sql */ `UPDATE ${table}(${})`
       } else {
-        const res = await Q(/* sql */`
-          WITH upsert AS (INSERT INTO ${table}(${columns.map(c => `"${c}"`).join(', ')}) (
-            SELECT ${columns.map(c => 'R."' + c + '"').join(', ')}
+        const res = await Q(/* sql */ `
+          WITH upsert AS (INSERT INTO ${table}(${columns
+          .map((c) => `"${c}"`)
+          .join(", ")}) (
+            SELECT ${columns.map((c) => 'R."' + c + '"').join(", ")}
             FROM ${temp_table_name} T,
               json_populate_record(null::${table}, T.jsondata) R
           )
@@ -308,21 +393,29 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
         `)
         const rows = res.rows[0]
         if (options.upsert) {
-          log(`${col_table(table)}: ${rows.num_inserted > 0 ? col_num(rows.num_inserted) : "no"} rows inserted, ${rows.num_updated > 0 ? col_updated(rows.num_updated) : "no"} rows updated`)
+          log(
+            `${col_table(table)}: ${
+              rows.num_inserted > 0 ? col_num(rows.num_inserted) : "no"
+            } rows inserted, ${
+              rows.num_updated > 0 ? col_updated(rows.num_updated) : "no"
+            } rows updated`
+          )
         } else {
-          log(`${col_table(table)}: ${col_num(rows.num_inserted)} rows inserted`)
+          log(
+            `${col_table(table)}: ${col_num(rows.num_inserted)} rows inserted`
+          )
         }
       }
 
       // Drop the temporary table
-      await Q(/* sql */`
+      await Q(/* sql */ `
         DROP TABLE ${temp_table_name}
       `)
 
       // The following instructions are used to reset sequences if we have have forced
       // id blocks.
       // First, we get all the sequences associated with this table
-      const seq_res = await Q(/* sql */`
+      const seq_res = await Q(/* sql */ `
         SELECT
           column_name as name,
           regexp_replace(
@@ -336,11 +429,19 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
           AND column_default like '%nextval(%'
       `)
 
-      const sequences = seq_res.rows as {name: string, seq: string}[]
+      /** Recreate the indixes we dropped previously */
+      if (options.drop_indexes && indices.length > 0) {
+        for (let index of indices) {
+          log(`recreating index ${index.indexname}`)
+          await Q(index.indexdef)
+        }
+      }
+
+      const sequences = seq_res.rows as { name: string; seq: string }[]
 
       for (var seq of sequences) {
         log2(`Resetting sequence ${seq.seq}`)
-        await Q(/* sql */`
+        await Q(/* sql */ `
           DO $$
           DECLARE
             themax INT;
@@ -352,7 +453,6 @@ async function collection_handler(db: PgClient, col: Collection, first: any, see
           $$ LANGUAGE plpgsql;
         `)
       }
-
-    }
+    },
   }
 }
