@@ -7,7 +7,19 @@ import * as tty from "tty"
 import * as path from "path"
 import * as net from "net"
 
-import { ChunkType, Chunk, Data, ErrorChunk, Message, Collection, chunk_is_message, chunk_is_collection, chunk_is_data, chunk_is_error, ColumnHelper } from "./types"
+import {
+  ChunkType,
+  Chunk,
+  Data,
+  ErrorChunk,
+  Message,
+  Collection,
+  chunk_is_message,
+  chunk_is_collection,
+  chunk_is_data,
+  chunk_is_error,
+  ColumnHelper,
+} from "./types"
 import { coll, debug, num, c } from "./debug"
 
 export * from "./types"
@@ -25,11 +37,9 @@ export function log(...a: any[]) {
   console.error(self_name, ...a)
 }
 
-
 const out = fs.openSync("/dev/stdout", "w")
 
 export namespace emit {
-
   // The whole emit facilities use the synchronized write API.
   // Why not process.stdout ? Simply because it is a tad slower in most
   // situations, due to the asynchronous dispatching of data, and
@@ -74,9 +84,8 @@ export namespace emit {
   }
 
   // flush the buffer
-  process.on("beforeExit", _ => {
-    if (offset > 0)
-      flush()
+  process.on("beforeExit", (_) => {
+    if (offset > 0) flush()
   })
 
   export function write_packet(type: ChunkType, buf: Uint8Array) {
@@ -102,19 +111,26 @@ export namespace emit {
   }
 
   export function collection(name: string, helpers?: ColumnHelper[]) {
-    if (_current != null) log1(coll(_current), col_src("emitted »"), num(_count), "lines")
+    if (_current != null)
+      log1(coll(_current), col_src("emitted »"), num(_count), "lines")
     _current = name
     _count = 0
     chunk(ChunkType.Collection, { name, columns: helpers })
   }
 
-  process.on("beforeExit", _ => {
-    if (_current != null) log1(coll(_current), col_src("emitted »"), num(_count), "lines")
+  process.on("beforeExit", (_) => {
+    if (_current != null)
+      log1(coll(_current), col_src("emitted »"), num(_count), "lines")
   })
 
   export function error(err: ErrorChunk) {
     console.error(new Error())
-    const err_ = {message: err.message, origin: err.origin ?? self_name, stack: err.stack ?? "", payload: err.payload}
+    const err_ = {
+      message: err.message,
+      origin: err.origin ?? self_name,
+      stack: err.stack ?? "",
+      payload: err.payload,
+    }
     if (!err.stack) {
       Error.captureStackTrace(err_, error)
     }
@@ -130,7 +146,6 @@ export function report_error(err: ErrorChunk) {
     emit.chunk(ChunkType.Error, err)
   }
 }
-
 
 export function packet_reader() {
   // let fd = fs.openSync("/dev/stdin", "rs")
@@ -148,7 +163,9 @@ export function packet_reader() {
       // log("!!", offset, length, res, l)
       if (res === 0) {
         if (offset === 0) return 0
-        throw new Error(`unexpected EOF (want: ${l} but had 0, try: ${length}, offset: ${offset})`) // EOF !
+        throw new Error(
+          `unexpected EOF (want: ${l} but had 0, try: ${length}, offset: ${offset})`
+        ) // EOF !
       }
       offset += res
       length -= res
@@ -166,7 +183,7 @@ export function packet_reader() {
       // log(type, length)
 
       if (length > bufsize) {
-        bufsize = Math.max(bufsize * 3 / 2, Math.ceil(length / 1024) * 1024)
+        bufsize = Math.max((bufsize * 3) / 2, Math.ceil(length / 1024) * 1024)
         buf = new Uint8Array(bufsize)
       }
 
@@ -175,16 +192,16 @@ export function packet_reader() {
       rd = read_buffer(buf, length)
       if (rd !== length) {
         // THIS IS AN ERROR !!!
-        throw new Error(`stdin returned EOF, yet there is data expected (expected ${length})`)
+        throw new Error(
+          `stdin returned EOF, yet there is data expected (expected ${length})`
+        )
       }
       let view = buf.subarray(0, length)
-      return {type, view}
+      return { type, view }
     },
-    header: header
+    header: header,
   }
-
 }
-
 
 export interface CollectionHandler {
   // start(coll: Collection, data: Data): Promise<void> | void
@@ -196,7 +213,10 @@ export interface Sink {
   /**
    * Called before collection start
    */
-  collection(col: Collection, data: Data): Promise<CollectionHandler> | CollectionHandler
+  collection(
+    col: Collection,
+    data: Data
+  ): Promise<CollectionHandler> | CollectionHandler
   init?(): Promise<void> | void
   message?(message: Message): Promise<void> | void
   error?(error: ErrorChunk): Promise<void> | void
@@ -208,7 +228,8 @@ export interface Sink {
 let passthrough = false
 
 export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
-  let handler = typeof _handler === "function" ? await _handler() : _handler
+  let handler =
+    typeof _handler === "function" ? await _handler() : await _handler
   if (tty.isatty(0)) throw new Error(`a sink needs an input`)
   if (passthrough) handler.passthrough = true
 
@@ -217,14 +238,13 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
   } catch (e: any) {
     // console.dir(e)
     const payload = {} as any
-    for (let name of Object.getOwnPropertyNames(e))
-      payload[name] = e[name]
+    for (let name of Object.getOwnPropertyNames(e)) payload[name] = e[name]
     // console.error(e.detail)
     emit.error({
       origin: self_name,
       message: e.message,
       payload: JSON.stringify(payload),
-      stack: e.stack
+      stack: e.stack,
     })
     // console.error(e)
     process.exit(1)
@@ -232,7 +252,6 @@ export async function sink(_handler: Sink | (() => Promise<Sink> | Sink)) {
 }
 
 async function sink_handle(handler: Sink) {
-
   let reader = packet_reader()
 
   let collection_handler: CollectionHandler | null = null
@@ -273,7 +292,13 @@ async function sink_handle(handler: Sink) {
       if (debug_output) {
         let _now = Date.now()
         if (_now - _last >= 1000) {
-          log(coll(collection_name), _count, "rows handled so far -", Math.round((_count - _last_count) / ((_now - _last))), "Krows/secs")
+          log(
+            coll(collection_name),
+            _count,
+            "rows handled so far -",
+            Math.round((_count - _last_count) / (_now - _last)),
+            "Krows/secs"
+          )
           _last = _now
           _last_count = _count
         }
@@ -298,7 +323,6 @@ async function sink_handle(handler: Sink) {
       await handler.finally?.()
       return
     }
-
   }
 
   await end_collection()
@@ -318,14 +342,15 @@ async function sink_handle(handler: Sink) {
   await handler.finally?.()
 }
 
-
 // The current executable name, used in target: when passing commands and messages.
-export let self_name: string = path.basename(process.argv[1] ?? "").replace(/.[jt]s/, "").replace("swl-", "")
+export let self_name: string = path
+  .basename(process.argv[1] ?? "")
+  .replace(/.[jt]s/, "")
+  .replace("swl-", "")
 if (self_name.includes("-src"))
   self_name = col_src(self_name.replace("-src", " »"))
 if (self_name.includes("sink"))
   self_name = col_sink(self_name.replace("-sink", " «"))
-
 
 /**
  * Try to find a forward pattern in an URI and create the ssh tunnel if
@@ -334,12 +359,16 @@ if (self_name.includes("sink"))
  * @param uri: the uri to search the pattern in
  * @returns a modified URI with the forwarded port on localhost
  */
-export async function uri_maybe_open_tunnel(uri: string, default_port?: number) {
+export async function uri_maybe_open_tunnel(
+  uri: string,
+  default_port?: number
+) {
   const ssh2 = require("node-ssh") as typeof import("node-ssh")
   // const tunnel = require("tunnel-ssh") as typeof import("tunnel-ssh")
   const conf = require("ssh-config")
 
-  var re_tunnel = /([^@:\/]+)(?::(\d+))?@@(?:([^@:]+)(?::([^@]+))?@)?([^:/]+)(?::([^\/]+))?/
+  var re_tunnel =
+    /([^@:\/]+)(?::(\d+))?@@(?:([^@:]+)(?::([^@]+))?@)?([^:/]+)(?::([^\/]+))?/
 
   var match = re_tunnel.exec(uri)
 
@@ -349,22 +378,25 @@ export async function uri_maybe_open_tunnel(uri: string, default_port?: number) 
   const [remote_host, remote_port, user, password, host, port] = match.slice(1)
 
   var config: any = {
-    host, port: port,
-    dstHost: remote_host, dstPort: remote_port ?? default_port,
-    localHost: "127.0.0.1"
+    host,
+    port: port,
+    dstHost: remote_host,
+    dstPort: remote_port ?? default_port,
+    localHost: "127.0.0.1",
   }
 
   if (user) config.username = user
   if (password) config.password = password
 
   try {
-    var _conf = conf.parse(fs.readFileSync(`${process.env.HOME}/.ssh/config`, "utf-8"))
+    var _conf = conf.parse(
+      fs.readFileSync(`${process.env.HOME}/.ssh/config`, "utf-8")
+    )
     const comp = _conf.compute(host)
     if (comp.HostName) config.host = comp.HostName
     if (comp.User && !config.username) config.username = comp.User
     if (comp.Password && !config.password) config.password = comp.Password
     if (comp.Port && !config.port) config.port = comp.Port
-
   } catch (e) {
     // console.log(e)
   }
@@ -379,7 +411,7 @@ export async function uri_maybe_open_tunnel(uri: string, default_port?: number) 
     port: config.port,
   })
 
-  client.connection?.addListener("error", ev => {
+  client.connection?.addListener("error", (ev) => {
     console.error(ev)
   })
 
@@ -396,7 +428,7 @@ export async function uri_maybe_open_tunnel(uri: string, default_port?: number) 
 
   const local_port = await local_port_promise
 
-  server.on("connection", connection => {
+  server.on("connection", (connection) => {
     connection.pipe(chan).pipe(connection)
 
     connection.once("end", () => {
@@ -407,19 +439,28 @@ export async function uri_maybe_open_tunnel(uri: string, default_port?: number) 
       client.dispose()
       server.close()
     })
-
   })
 
-  const chan = await client.forwardOut("127.0.0.1", local_port, config.dstHost, config.dstPort)
+  const chan = await client.forwardOut(
+    "127.0.0.1",
+    local_port,
+    config.dstHost,
+    config.dstPort
+  )
 
-  log1("opening ssh tunnel to", col_table(remote_host + ":" + col_num(remote_port)), "via", col_table("127.0.0.1:" + col_num(local_port)), "through", col_table(host))
+  log1(
+    "opening ssh tunnel to",
+    col_table(remote_host + ":" + col_num(remote_port)),
+    "via",
+    col_table("127.0.0.1:" + col_num(local_port)),
+    "through",
+    col_table(host)
+  )
 
   return { uri: uri.replace(match[0], `127.0.0.1:${local_port}`) }
 }
 
-
 export function emit_upstream(): boolean {
-
   if (tty.isatty(0)) {
     return true
   }
@@ -447,34 +488,30 @@ export function emit_upstream(): boolean {
   return true
 }
 
-
 /**
  * A very simple function to have the source forward its input and then run the source itself.
  *
  * @param fn The function to execute once stdin has been forwarded
  */
 export function source<T>(fn: () => T) {
-  if (emit_upstream())
-    return fn()
+  if (emit_upstream()) return fn()
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-process.on("uncaughtException", err => {
+process.on("uncaughtException", (err) => {
   if (err.message.startsWith("EPIPE: broken pipe")) {
     log(col_error("broken pipe"))
   } else {
     log(col_error("uncaught error"), err.message, err.stack)
   }
   if (!process.stdout.isTTY && !err.message.startsWith("EPIPE: broken pipe"))
-    emit.error({message: err.message})
+    emit.error({ message: err.message })
   process.exit(1)
 })
 
 export class Lock<T> {
-
   promise: Promise<T>
   _accept!: (t: T) => void
   _reject!: (e: any) => void
@@ -506,10 +543,9 @@ export class Lock<T> {
 }
 
 const swl_verbose = parseInt(process.env.SWL_VERBOSE ?? "")
-export let log1 = swl_verbose >= 1 ? log : (...a: any[]) => { }
-export let log2 = swl_verbose >= 2 ? log : (...a: any[]) => { }
-export let log3 = swl_verbose >= 3 ? log : (...a: any[]) => { }
-
+export let log1 = swl_verbose >= 1 ? log : (...a: any[]) => {}
+export let log2 = swl_verbose >= 2 ? log : (...a: any[]) => {}
+export let log3 = swl_verbose >= 3 ? log : (...a: any[]) => {}
 
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
@@ -517,13 +553,13 @@ export let log3 = swl_verbose >= 3 ? log : (...a: any[]) => { }
 export { optparser } from "./optparse"
 import { optparser, param, flag, arg } from "./optparse"
 
-
 const grp = "BASE SWL OPTIONS"
 export const default_opts = optparser(
   flag("-p", "--passthrough")
-    .as("passthrough").help("let the sink handle the data but still forward it")
+    .as("passthrough")
+    .help("let the sink handle the data but still forward it")
     .group(grp)
-    .map(p => {
+    .map((p) => {
       if (p) passthrough = true
       return p
     }),
@@ -531,7 +567,7 @@ export const default_opts = optparser(
     .as("alias")
     .group(grp)
     .help("give another name to this component in the pipe")
-    .map(alias => {
+    .map((alias) => {
       self_name = col_alias("(" + alias + ") ") + self_name
       return alias
     }),
@@ -539,7 +575,7 @@ export const default_opts = optparser(
     .as("verbose")
     .group(grp)
     .repeat()
-    .map(vb => {
+    .map((vb) => {
       let verb = Math.max(swl_verbose, vb.length)
       if (verb >= 1) log1 = log
       if (verb >= 2) log2 = log
@@ -549,9 +585,16 @@ export const default_opts = optparser(
 )
 
 export const default_col_src_opts = optparser(
-  arg("name").required().help("the name of the collection. If no query is provided, will also be the name of the queried table/view")
+  arg("name")
+    .required()
+    .help(
+      "the name of the collection. If no query is provided, will also be the name of the queried table/view"
+    )
 )
 
-export const default_col_sql_src_opts = default_col_src_opts.clone()
-  .add_handler(param("-q", "--query").as("query").help("an SQL query instead of select *"))
-  // .add_handler(param("-r", "--rename").as("rename").default(""))
+export const default_col_sql_src_opts = default_col_src_opts
+  .clone()
+  .add_handler(
+    param("-q", "--query").as("query").help("an SQL query instead of select *")
+  )
+// .add_handler(param("-r", "--rename").as("rename").default(""))

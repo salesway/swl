@@ -1,110 +1,155 @@
-
-import * as DB from "duckdb"
-import { Collection, Collection, CollectionHandler, Lock, Sink, col_table, log2, log3 } from "../src"
+import * as DB from "@duckdb/node-api"
+import {
+  Collection,
+  CollectionHandler,
+  Lock,
+  Sink,
+  col_table,
+  log2,
+  log3,
+} from "../src"
 
 // COMMON
 
 //
 export interface DuckDBSinkOptions {
-  drop?: boolean,
-  truncate?: boolean,
-  upsert?: boolean,
+  drop?: boolean
+  truncate?: boolean
+  upsert?: boolean
   verbose: number
 }
 
-export function duckdb_sink(path: string, opts: DuckDBSinkOptions): Sink {
-
-  const db = new DB.Database(path)
+export async function duckdb_sink(
+  path: string,
+  opts: DuckDBSinkOptions
+): Promise<Sink> {
+  const db_inst = await DB.DuckDBInstance.create(path, {})
+  const db = await db_inst.connect()
 
   async function exec(stmt: string) {
     log3(stmt)
-    const lock = new Lock()
-    db.exec(stmt, function (err, res) {
-      if (err != null) {
-        lock.reject(err)
-      } else {
-        lock.resolve(res)
-      }
-    })
-    await lock.promise
+    await db.run(stmt)
   }
 
-  async function collection_handler(col: Collection, start: any): Promise<CollectionHandler> {
+  async function collection_handler(
+    col: Collection,
+    start: any
+  ): Promise<CollectionHandler> {
     const name = col.name
     let table = col.name
     var columns = Object.keys(start)
-    console.error(col.columns)
 
-    var types = columns.map(c => typeof start[c] === "number" ? "int"
-    : start[c] instanceof Buffer ? "blob"
-    : "text")
+    var types = columns.map((c) =>
+      typeof start[c] === "number"
+        ? "float"
+        : start[c] instanceof Buffer
+        ? "blob"
+        : "text"
+    )
 
+    let schema = "main"
     if (name.includes(".")) {
-      const [schema, tbl] = name.split(".")
-      console.error(schema, tbl)
+      const [_schema, tbl] = name.split(".")
+      // console.error(_schema, tbl)
+      schema = _schema
+      table = tbl
       await exec(`CREATE SCHEMA IF NOT EXISTS "${schema}"`)
-      table = `"${schema}"."${tbl}"`
     } else {
-      table =`"${table}"`
+      table = `"${table}"`
     }
 
     if (opts.drop) {
       log2("dropping", col_table(table))
-      await exec(`DROP TABLE IF EXISTS ${table}`)
+      await exec(`DROP TABLE IF EXISTS "${schema}".${table}`)
     }
 
-    // Create if not exists ?
-    // Temporary ?
-    await exec(`CREATE TABLE IF NOT EXISTS ${table} (
+    await exec(`CREATE TABLE IF NOT EXISTS ${schema}.${table} (
       ${columns.map((c, i) => `"${c}" ${types[i]}`).join(", ")}
     )`)
 
     if (opts.truncate) {
       log2("truncating", col_table(table))
-      await exec(`DELETE FROM ${table}`)
+      await exec(`DELETE FROM "${schema}".${table}`)
     }
 
-    let stmt!: DB.Statement
-    if (!opts.upsert) {
-      const sql = `INSERT INTO ${table} (${columns.map(c => `"${c}"`).join(", ")})
-      values (${columns.map(c => "?").join(", ")})`
-      // console.error(sql)
-      stmt = db.prepare(sql)
-    } else if (opts.upsert) {
-      // Should I do some sub-query thing with coalesce ?
-      // I would need some kind of primary key...
-      // console.error(`INSERT OR REPLACE INTO ${table} (${columns.map(c => `"${c}"`).join(", ")})
-      // values (${columns.map(c => "?").join(", ")})`)
-      stmt = db.prepare(`INSERT OR REPLACE INTO ${table} (${columns.map(c => `"${c}"`).join(", ")})
-        values (${columns.map(c => "?").join(", ")})`)
-    }
+    await exec(
+      `CREATE TEMP TABLE temp.${table} (${columns
+        .map((c, i) => `"${c}" ${types[i]}`)
+        .join(", ")})`
+    )
+    console.error(schema, table)
+
+    const appender = await db.createAppender(table, schema)
+    let nb_values = 0
 
     return {
       data(data) {
-        stmt.run(...columns.map(c => data[c]))
+        nb_values++
+
+        for (let i = 0; i < columns.length; i++) {
+          let col = columns[i]
+          let original_value = data[col]
+          let type: DB.DuckDBType
+          let value: any
+          if (original_value == null) {
+            appender.appendNull()
+            continue
+          }
+
+          switch (types[i]) {
+            case "float":
+              type = DB.FLOAT
+              value = Number(data[col])
+              break
+
+            case "text":
+            default:
+              type = DB.VARCHAR
+              value = "" + original_value
+              break
+          }
+          appender.appendValue(value, type)
+        }
+
+        appender.endRow()
+
+        if (nb_values % 1024 === 0) {
+          appender.flushSync()
+        }
+        // stmt.run(...columns.map((c) => data[c]))
       },
-      end() {
+      async end() {
+        appender.closeSync()
+        await db.run(
+          `INSERT ${
+            opts.upsert ? "OR REPLACE" : ""
+          } INTO "${schema}"."${table}"(${columns
+            .map((c) => `"${c}"`)
+            .join(", ")}) SELECT * FROM temp.${table}`
+        )
+        await db.run(`DROP TABLE temp.${table}`)
         if (opts.verbose >= 2) {
           // let s = db.prepare(`select count(*) as cnt from "${tale}`)
           // log2("table", col_table(table), "now has", col_num(s.all()[0].cnt), "rows")
         }
-      }
+      },
     }
   }
 
-  db.exec("BEGIN")
+  await db.run("BEGIN")
   return {
     collection(col, start) {
       return collection_handler(col, start)
     },
-    error(err) {
+    async error(err) {
       log2("rollbacked")
-      db.exec("ROLLBACK")
+      await db.run("ROLLBACK")
     },
-    end() {
-      db.exec("COMMIT")
-      log2("commit")
-    }
-  }
+    async end() {
+      await db.run("COMMIT")
+      db_inst.closeSync()
 
+      log2("commit")
+    },
+  }
 }

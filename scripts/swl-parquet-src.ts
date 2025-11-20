@@ -4,7 +4,7 @@ import { optparser, arg, param, oneof } from "../src/optparse"
 
 import * as path from "path"
 
-import * as DB from "duckdb"
+import * as DB from "@duckdb/node-api"
 
 const selection = optparser(
   arg("file").required(),
@@ -20,7 +20,8 @@ source(async () => {
   let prev_collection = ""
 
   for (let file of files) {
-    const db = new DB.Database(":memory:")
+    const db_inst = await DB.DuckDBInstance.create(":memory:", {})
+    const db = await db_inst.connect()
     let collection = path.basename(file.file).replace(/(-\d*)?\.[^\.]*$/, "")
 
     if (prev_collection !== collection) {
@@ -28,20 +29,26 @@ source(async () => {
       prev_collection = collection
     }
 
-    const stmt = db.prepare(
-      `SELECT ${file.columns ?? "*"} FROM read_parquet($1)`
+    const stmt = await db.prepare(
+      `SELECT ${file.columns ?? "*"} FROM read_parquet($file)`
     )
-    const lock = new Lock<void>()
-
-    stmt.each(file.file, (_, row) => {
-      emit.data({ ...row })
+    stmt.bind({
+      file: file.file,
     })
 
-    stmt.finalize(() => {
-      lock.resolve()
-    })
+    const reader = await stmt.streamAndRead()
 
-    await lock.promise
-    db.close()
+    do {
+      await reader.readUntil(1024)
+      for (let row of reader.getRowObjectsJson()) {
+        emit.data(row)
+      }
+
+      if (reader.done) {
+        break
+      }
+    } while (true)
+
+    db_inst.closeSync()
   }
 })
