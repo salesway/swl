@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { source, emit, Lock } from "../src/index"
+import { source, emit } from "../src/index"
 import { optparser, arg, param, oneof } from "../src/optparse"
 
 import * as path from "path"
@@ -37,9 +37,11 @@ source(async () => {
     })
 
     const reader = await stmt.streamAndRead()
-
+    let last = 0
     do {
-      await reader.readUntil(1024)
+      await reader.readUntil(last + 2048)
+      last = reader.currentRowCount
+
       for (let row of reader.getRowObjectsJson()) {
         emit.data(row)
       }
