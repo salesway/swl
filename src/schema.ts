@@ -119,9 +119,6 @@ class Parser {
 
   next(): string | undefined {
     const tk = this.tokens[this.pos++]
-    if (tk === ")") {
-      console.error("next", tk, new Error().stack)
-    }
     return tk
   }
 }
@@ -139,6 +136,7 @@ function _parse(p: Parser): Type {
       if (name === undefined) {
         throw new Error("Expected column name")
       }
+      // console.error("sending at", p.tokens[p.pos])
       const type = _parse(p)
       res.columns.push({ columnName: name, columnType: type })
       p.consume(",")
@@ -154,6 +152,15 @@ function _parse(p: Parser): Type {
       res.members.push(member)
       p.consume(",")
     }
+    p.expect(")")
+  } else if (p.consume("map")) {
+    res = {
+      type: "MAP",
+    } as Map
+    p.expect("(")
+    res.key = _parse(p)
+    p.expect(",")
+    res.value = _parse(p)
     p.expect(")")
   } else {
     res = p.next() as Type
@@ -182,6 +189,5 @@ function _parse(p: Parser): Type {
 export function parse_duckdb_describe_type(type: string): Type {
   const tk = lex_duckdb_describe_type(type)
   const typ = _parse(new Parser(tk))
-  console.error(inspect(typ, { depth: null }))
   return typ
 }
