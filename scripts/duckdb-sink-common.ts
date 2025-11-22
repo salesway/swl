@@ -54,8 +54,6 @@ export async function duckdb_sink(
       schema = _schema
       table = tbl
       await exec(`CREATE SCHEMA IF NOT EXISTS "${schema}"`)
-    } else {
-      table = `"${table}"`
     }
 
     if (opts.drop) {
@@ -77,7 +75,7 @@ export async function duckdb_sink(
         .map((c, i) => `"${c}" ${types[i]}`)
         .join(", ")})`
     )
-    console.error(schema, table)
+    // console.error(schema, table)
 
     const appender = await db.createAppender(table, schema)
     let nb_values = 0
@@ -120,6 +118,7 @@ export async function duckdb_sink(
       },
       async end() {
         appender.closeSync()
+        appender.appendMap
         await db.run(
           `INSERT ${
             opts.upsert ? "OR REPLACE" : ""

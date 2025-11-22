@@ -1,3 +1,5 @@
+import { inspect } from "util"
+
 // These are the base type names that duckdb will return in its describe command
 export type DDBType =
   | "BIGINT"
@@ -65,7 +67,9 @@ function lex_duckdb_describe_type(type_name: string): string[] {
   re.lastIndex = last
   while ((match = re.exec(type_name)) !== null) {
     let token = match[0]
-    result.push(token)
+    if (token.trim() !== "") {
+      result.push(token)
+    }
     re.lastIndex = last = match.index + token.length
   }
 
@@ -78,7 +82,106 @@ function lex_duckdb_describe_type(type_name: string): string[] {
   return result
 }
 
+class Parser {
+  constructor(public tokens: string[]) {}
+  pos = 0
+
+  expect(token: string): void {
+    if (this.tokens[this.pos].toLowerCase() !== token.toLowerCase()) {
+      throw new Error(`Expected ${token} but got ${this.tokens[this.pos]}`)
+    }
+    this.pos++
+  }
+
+  consume(token: string): boolean
+  consume(token: RegExp): RegExpMatchArray
+  consume(token: string | RegExp): RegExpMatchArray | boolean {
+    const tk = this.tokens[this.pos]
+    if (tk == null) {
+      return false
+    }
+
+    if (typeof token === "string") {
+      if (tk.toLowerCase() !== token.toLowerCase()) {
+        return false
+      }
+      this.pos++
+      return true
+    }
+
+    let match = token.exec(tk)
+    if (match === null) {
+      return false
+    }
+    this.pos++
+    return match
+  }
+
+  next(): string | undefined {
+    const tk = this.tokens[this.pos++]
+    if (tk === ")") {
+      console.error("next", tk, new Error().stack)
+    }
+    return tk
+  }
+}
+
+function _parse(p: Parser): Type {
+  let res: Type
+  if (p.consume("struct")) {
+    res = {
+      type: "STRUCT",
+      columns: [],
+    }
+    p.expect("(")
+    while (!p.consume(")")) {
+      const name = p.next()
+      if (name === undefined) {
+        throw new Error("Expected column name")
+      }
+      const type = _parse(p)
+      res.columns.push({ columnName: name, columnType: type })
+      p.consume(",")
+    }
+  } else if (p.consume("union")) {
+    res = {
+      type: "UNION",
+      members: [],
+    }
+    p.expect("(")
+    while (!p.consume(")")) {
+      const member = _parse(p)
+      res.members.push(member)
+      p.consume(",")
+    }
+    p.expect(")")
+  } else {
+    res = p.next() as Type
+  }
+
+  if (p.consume("[]")) {
+    return {
+      type: "LIST",
+      value: res,
+    }
+  }
+
+  let match: RegExpMatchArray | null = null
+  if ((match = p.consume(/^\[\d+\]$/))) {
+    return {
+      type: "ARRAY",
+      value: res,
+      length: parseInt(match[0].slice(1, -1)),
+    }
+  }
+
+  return res
+}
+
 /** */
 export function parse_duckdb_describe_type(type: string): Type {
-  console.error(lex_duckdb_describe_type(type))
+  const tk = lex_duckdb_describe_type(type)
+  const typ = _parse(new Parser(tk))
+  console.error(inspect(typ, { depth: null }))
+  return typ
 }
