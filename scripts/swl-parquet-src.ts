@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { source, emit } from "../src/index"
+import { DescribeResult } from "../src/schema"
 import { optparser, arg, param, oneof } from "../src/optparse"
 
 import * as path from "path"
@@ -24,19 +25,21 @@ source(async () => {
     const db = await db_inst.connect()
     let collection = path.basename(file.file).replace(/(-\d*)?\.[^\.]*$/, "")
 
+    const sql = `SELECT ${file.columns ?? "*"} FROM read_parquet('${
+      file.file
+    }')`
+    const desc = await db.runAndReadAll("DESCRIBE " + sql)
+    console.error(desc.getRowObjectsJson() as DescribeResult[])
+
     if (prev_collection !== collection) {
       await emit.collection(collection)
       prev_collection = collection
     }
 
-    const stmt = await db.prepare(
-      `SELECT ${file.columns ?? "*"} FROM read_parquet($file)`
-    )
-    stmt.bind({
-      file: file.file,
-    })
+    const stmt = await db.prepare(sql)
 
     const reader = await stmt.streamAndRead()
+
     let last = 0
     do {
       await reader.readUntil(last + 2048)
