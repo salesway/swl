@@ -137,9 +137,9 @@ export async function duckdb_sink(
       async end() {
         appender.closeSync()
         await db.run(
-          `INSERT INTO "${schema}"."${table}"(${column_names.join(
-            ", "
-          )}) SELECT ${column_names
+          `INSERT INTO "${schema}"."${table}"(${column_names
+            .map((c) => (c[0] === '"' ? c : `"${c}"`))
+            .join(", ")}) SELECT ${column_names
             .map((c) => `json.${c}`)
             .join(
               ", "

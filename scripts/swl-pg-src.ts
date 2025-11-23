@@ -152,8 +152,14 @@ function pg_type_to_type(t: PgType): Type {
   if (pg_type === "timestamp") return "TIMESTAMP"
   if (pg_type === "timestamp with time zone" || pg_type === "timestamptz")
     return "TIMESTAMP WITH TIME ZONE"
+  if (pg_type === "bytea") return "BLOB"
   if (pg_type === "hstore") {
     return { type: "MAP", key: "VARCHAR", value: "VARCHAR" }
+  }
+  if (pg_type === "tsrange") return "VARCHAR" // there is unfortunately no equivalent
+  if (pg_type === "numeric") {
+    return "DECIMAL(38, 4)"
+    // console.error(t)
   }
 
   if (t.typrelid > 0) {
@@ -224,7 +230,7 @@ async function get_relations(
   client: PgClient
 ): Promise<Map<number, PgRelation>> {
   const relations_q = await client.query(/* sql */ `
-  SELECT cl.oid, cl.relname, cl.relnamespace AS SCHEMA, json_agg(json_build_object('name', attr.attname, 'type_id', attr.atttypid::INTEGER, 'not_null', attr.attnotnull) ORDER BY attr.attnum) AS COLUMNS FROM pg_class cl
+  SELECT cl.oid, cl.relname, cl.relnamespace AS SCHEMA, json_agg(json_build_object('name', attr.attname, 'type_id', attr.atttypid::INTEGER, 'not_null', attr.attnotnull, 'mod', attr.atttypmod) ORDER BY attr.attnum) AS COLUMNS FROM pg_class cl
   INNER JOIN pg_attribute attr ON attr.attrelid = cl.oid
   GROUP BY cl.oid, cl.relname, cl.relnamespace
   `)
