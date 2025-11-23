@@ -196,3 +196,41 @@ export function parse_duckdb_describe_type(type: string): Type {
   const typ = _parse(new Parser(tk))
   return typ
 }
+
+export function duckdb_type_to_string(type: Type): string {
+  if (typeof type === "string") {
+    return type
+  }
+  if (type.type === "ARRAY") {
+    return duckdb_type_to_string(type.value) + "[" + type.length + "]"
+  }
+  if (type.type === "LIST") {
+    return duckdb_type_to_string(type.value) + "[]"
+  }
+  if (type.type === "MAP") {
+    return (
+      "MAP(" +
+      duckdb_type_to_string(type.key) +
+      ", " +
+      duckdb_type_to_string(type.value) +
+      ")"
+    )
+  }
+  if (type.type === "STRUCT") {
+    return (
+      "STRUCT(" +
+      type.columns
+        .map((c) => c.column_name + " " + duckdb_type_to_string(c.column_type))
+        .join(", ") +
+      ")"
+    )
+  }
+  if (type.type === "UNION") {
+    return (
+      "UNION(" +
+      type.members.map((m) => duckdb_type_to_string(m)).join(", ") +
+      ")"
+    )
+  }
+  throw new Error(`Unknown type: ${JSON.stringify(type)}`)
+}

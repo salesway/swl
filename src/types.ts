@@ -1,4 +1,4 @@
-import { Type } from "schema"
+import { Column } from "schema"
 
 export const enum ChunkType {
   Data = 1,
@@ -9,7 +9,7 @@ export const enum ChunkType {
 
 export interface Collection {
   name: string
-  columns?: { [name: string]: Type }[]
+  columns?: Column[]
 }
 
 export interface ErrorChunk {
