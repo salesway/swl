@@ -1,29 +1,30 @@
 /** swl considers that it works in UTC all the time */
 process.env.TZ = "UTC"
 
-import * as v8 from "v8"
 import * as fs from "fs"
-import * as tty from "tty"
-import * as path from "path"
 import * as net from "net"
+import * as path from "path"
+import * as tty from "tty"
+import * as v8 from "v8"
 
+import { Column } from "schema"
+import { c, coll, debug, num } from "./debug"
+import { arg, flag, optparser, param } from "./optparse"
 import {
-  ChunkType,
   Chunk,
-  Data,
-  ErrorChunk,
-  Message,
-  Collection,
-  chunk_is_message,
   chunk_is_collection,
   chunk_is_data,
   chunk_is_error,
-  ColumnHelper,
+  chunk_is_message,
+  ChunkType,
+  Collection,
+  Data,
+  ErrorChunk,
+  Message,
 } from "./types"
-import { coll, debug, num, c } from "./debug"
 
-export * from "./types"
 export * from "./debug"
+export * from "./types"
 
 export const col_sink = c.hsl(1, 40, 40)
 export const col_src = c.hsl(170, 40, 40)
@@ -110,7 +111,7 @@ export namespace emit {
     chunk(ChunkType.Data, data)
   }
 
-  export function collection(name: string, helpers?: ColumnHelper[]) {
+  export function collection(name: string, helpers?: Column[]) {
     if (_current != null)
       log1(coll(_current), col_src("emitted »"), num(_count), "lines")
     _current = name
@@ -551,7 +552,6 @@ export let log3 = swl_verbose >= 3 ? log : (...a: any[]) => {}
 //////////////////////////////////////////////////////////////////////////////////
 
 export { optparser } from "./optparse"
-import { optparser, param, flag, arg } from "./optparse"
 
 const grp = "BASE SWL OPTIONS"
 export const default_opts = optparser(

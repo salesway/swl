@@ -2,12 +2,12 @@ import * as DB from "@duckdb/node-api"
 import {
   Collection,
   CollectionHandler,
-  Lock,
   Sink,
   col_table,
   log2,
   log3,
 } from "../src"
+import { Type } from "schema"
 
 // COMMON
 
@@ -17,6 +17,41 @@ export interface DuckDBSinkOptions {
   truncate?: boolean
   upsert?: boolean
   verbose: number
+}
+
+function _type_to_duckdb_type(type: Type): string {
+  if (typeof type === "string") {
+    return type
+  }
+  if (type.type === "LIST") {
+    return _type_to_duckdb_type(type.value) + "[]"
+  }
+  if (type.type === "MAP") {
+    return (
+      "MAP(" +
+      _type_to_duckdb_type(type.key) +
+      ", " +
+      _type_to_duckdb_type(type.value) +
+      ")"
+    )
+  }
+  if (type.type === "STRUCT") {
+    return (
+      "STRUCT(" +
+      type.columns
+        .map((c) => c.column_name + " " + _type_to_duckdb_type(c.column_type))
+        .join(", ") +
+      ")"
+    )
+  }
+  if (type.type === "UNION") {
+    return (
+      "UNION(" +
+      type.members.map((m) => _type_to_duckdb_type(m)).join(", ") +
+      ")"
+    )
+  }
+  throw new Error(`Unknown type: ${type.type}`)
 }
 
 export async function duckdb_sink(
@@ -38,14 +73,20 @@ export async function duckdb_sink(
     const name = col.name
     let table = col.name
     var columns = Object.keys(start)
+    const helpers = col.columns
 
-    var types = columns.map((c) =>
-      typeof start[c] === "number"
-        ? "float"
-        : start[c] instanceof Buffer
-        ? "blob"
-        : "text"
-    )
+    var types = helpers
+      ? helpers.map((c) => _type_to_duckdb_type(c.column_type))
+      : columns.map((c) =>
+          typeof start[c] === "number"
+            ? "float"
+            : start[c] instanceof Buffer
+            ? "blob"
+            : "text"
+        )
+    const column_names = helpers
+      ? helpers.map((c) => c.column_name)
+      : columns.map((c) => `"${c}"`)
 
     let schema = "main"
     if (name.includes(".")) {
@@ -70,45 +111,22 @@ export async function duckdb_sink(
       await exec(`DELETE FROM "${schema}".${table}`)
     }
 
-    await exec(
-      `CREATE TEMP TABLE temp.${table} (${columns
-        .map((c, i) => `"${c}" ${types[i]}`)
-        .join(", ")})`
+    const desc = await db.runAndReadAll(
+      `SELECT json_group_object(column_name, data_type)::varchar as struct_type FROM information_schema.columns WHERE table_schema = '${schema}' AND table_name = '${table}'`
     )
+    const struct_type = desc.getRowObjectsJson()[0].struct_type
+    console.error(struct_type)
+    await exec(`CREATE TEMP TABLE __temp__json (data varchar)`)
     // console.error(schema, table)
 
-    const appender = await db.createAppender(table, schema)
+    const appender = await db.createAppender("__temp__json")
     let nb_values = 0
 
     return {
       data(data) {
         nb_values++
 
-        for (let i = 0; i < columns.length; i++) {
-          let col = columns[i]
-          let original_value = data[col]
-          let type: DB.DuckDBType
-          let value: any
-          if (original_value == null) {
-            appender.appendNull()
-            continue
-          }
-
-          switch (types[i]) {
-            case "float":
-              type = DB.FLOAT
-              value = Number(data[col])
-              break
-
-            case "text":
-            default:
-              type = DB.VARCHAR
-              value = "" + original_value
-              break
-          }
-          appender.appendValue(value, type)
-        }
-
+        appender.appendVarchar(JSON.stringify(data))
         appender.endRow()
 
         if (nb_values % 1024 === 0) {
@@ -118,15 +136,16 @@ export async function duckdb_sink(
       },
       async end() {
         appender.closeSync()
-        appender.appendMap
         await db.run(
-          `INSERT ${
-            opts.upsert ? "OR REPLACE" : ""
-          } INTO "${schema}"."${table}"(${columns
-            .map((c) => `"${c}"`)
-            .join(", ")}) SELECT * FROM temp.${table}`
+          `INSERT INTO "${schema}"."${table}"(${column_names.join(
+            ", "
+          )}) SELECT ${column_names
+            .map((c) => `json.${c}`)
+            .join(
+              ", "
+            )} from (select from_json(js.data, $$${struct_type}$$) as json from __temp__json js) json `
         )
-        await db.run(`DROP TABLE temp.${table}`)
+        await db.run(`DROP TABLE __temp__json`)
         if (opts.verbose >= 2) {
           // let s = db.prepare(`select count(*) as cnt from "${tale}`)
           // log2("table", col_table(table), "now has", col_num(s.all()[0].cnt), "rows")

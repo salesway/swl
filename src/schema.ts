@@ -1,5 +1,3 @@
-import { inspect } from "util"
-
 // These are the base type names that duckdb will return in its describe command
 export type DDBType =
   | "BIGINT"
@@ -7,6 +5,7 @@ export type DDBType =
   | "BOOLEAN"
   | "BLOB"
   | `DECIMAL(${number}, ${number})`
+  | "DATE"
   | "DOUBLE"
   | "FLOAT"
   | "HUGEINT"
@@ -39,7 +38,7 @@ export type Array = {
 export type List = { type: "LIST"; value: Type }
 export type Struct = {
   type: "STRUCT"
-  columns: { columnName: string; columnType: Type }[]
+  columns: { column_name: string; column_type: Type }[]
 }
 export type Union = { type: "UNION"; members: Type[] }
 
@@ -138,7 +137,7 @@ function _parse(p: Parser): Type {
       }
       // console.error("sending at", p.tokens[p.pos])
       const type = _parse(p)
-      res.columns.push({ columnName: name, columnType: type })
+      res.columns.push({ column_name: name, column_type: type })
       p.consume(",")
     }
   } else if (p.consume("union")) {
@@ -183,6 +182,12 @@ function _parse(p: Parser): Type {
   }
 
   return res
+}
+
+export type Column = {
+  column_name: string
+  column_type: Type
+  not_null: boolean
 }
 
 /** */

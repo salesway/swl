@@ -1,3 +1,4 @@
+import { Type } from "schema"
 
 export const enum ChunkType {
   Data = 1,
@@ -6,29 +7,9 @@ export const enum ChunkType {
   Message = 4,
 }
 
-export type SwlColumnType =
-  | "bool"
-  | "text"
-  | "int"
-  | "float"
-  | "json"
-  | "date" // Always TZ. If TZ was not specified, UTC should be assumed.
-
-export interface ColumnHelper {
-  /** The name of the column */
-  name: string
-  /** Whether the column is nullable */
-  nullable: boolean
-  /** The internal type */
-  type: SwlColumnType
-  /** The type name as specified by the database */
-  db_type?: string
-  /** Mostly the column is null */
-}
-
 export interface Collection {
   name: string
-  columns?: ColumnHelper[]
+  columns?: { [name: string]: Type }[]
 }
 
 export interface ErrorChunk {
@@ -47,15 +28,20 @@ export interface Message {
 
 export type Data = any // string | number | boolean | Date | null | Data[] | {[name: string]: Data}
 
-export type Chunk =
-  | Data
-  | Collection
-  | ErrorChunk
-  | Message
+export type Chunk = Data | Collection | ErrorChunk | Message
 
-
-export function chunk_is_data(type: ChunkType, data: any): data is Data { return type === ChunkType.Data }
-export function chunk_is_collection(type: ChunkType, data: any): data is Collection { return type === ChunkType.Collection }
-export function chunk_is_error(type: ChunkType, data: any): data is ErrorChunk { return type === ChunkType.Error }
-export function chunk_is_message(type: ChunkType, data: any): data is Message { return type === ChunkType.Message }
-
+export function chunk_is_data(type: ChunkType, data: any): data is Data {
+  return type === ChunkType.Data
+}
+export function chunk_is_collection(
+  type: ChunkType,
+  data: any
+): data is Collection {
+  return type === ChunkType.Collection
+}
+export function chunk_is_error(type: ChunkType, data: any): data is ErrorChunk {
+  return type === ChunkType.Error
+}
+export function chunk_is_message(type: ChunkType, data: any): data is Message {
+  return type === ChunkType.Message
+}

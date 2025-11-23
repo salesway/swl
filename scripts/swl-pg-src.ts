@@ -1,66 +1,95 @@
 #!/usr/bin/env -S bun run
 
-import { Client as PgClient, QueryResultBase } from 'pg'
+import { Client as PgClient, QueryResultBase } from "pg"
 import Cursor from "pg-cursor"
 
-import { default_opts, emit, log1, source, uri_maybe_open_tunnel, col_src, ColumnHelper, SwlColumnType } from '../src/'
-import { optparser, arg, param, oneof } from "../src/optparse"
-
+import {
+  col_src,
+  default_opts,
+  emit,
+  log1,
+  source,
+  uri_maybe_open_tunnel,
+} from "../src/"
+import { arg, oneof, optparser, param } from "../src/optparse"
+import { Column, Type } from "schema"
 
 const opts_src = optparser(
   arg("name").required(),
-  param("-q", "--query").as("query"),
+  param("-q", "--query").as("query")
 )
 
 const opts = optparser(
   default_opts,
   param("-s", "--schema").as("schema").default("public"),
-  arg("uri").help("a postgres connection uri such as postgres://user:pass@host/database").required(),
-  oneof(opts_src).as("sources").repeat(),
+  arg("uri")
+    .help(
+      "a postgres connection uri such as postgres://user:pass@host/database"
+    )
+    .required(),
+  oneof(opts_src).as("sources").repeat()
 ).parse()
 
+let types!: Map<number, PgType>
+let relations!: Map<number, PgRelation>
 /**
  *
  */
 source(async function pg_source() {
   let open = await uri_maybe_open_tunnel(opts.uri, 5432)
-  let uri = open.uri.startsWith("postgres://") ? open.uri : `postgres://${open.uri}`
+  let uri = open.uri.startsWith("postgres://")
+    ? open.uri
+    : `postgres://${open.uri}`
 
   const client = new PgClient(uri)
 
   async function _process() {
+    types = await get_types(client)
+    relations = await get_relations(client)
 
-    const types = await get_types(client)
-
-    let queries = opts.sources.length ?
-      (await Promise.all(opts.sources.map(async s => {
-        if (s.name.endsWith(".*")) {
-          return await get_all_tables_from_schema(client, s.name.slice(0, -2))
-        }
-        return [{ name: s.name, query: s.query || /* sql */`select * from ${s.name} TBL` }]
-      }))).flat()
+    let queries = opts.sources.length
+      ? (
+          await Promise.all(
+            opts.sources.map(async (s) => {
+              if (s.name.endsWith(".*")) {
+                return await get_all_tables_from_schema(
+                  client,
+                  s.name.slice(0, -2)
+                )
+              }
+              return [
+                {
+                  name: s.name,
+                  query: s.query || /* sql */ `select * from ${s.name} TBL`,
+                },
+              ]
+            })
+          )
+        ).flat()
       : await get_all_tables_from_schema(client, opts.schema)
 
     for (let q of queries) {
-
       const cursor = new Cursor(q.query)
-      const result = await client.query(cursor) as Cursor & {_result: QueryResultBase}
+      const result = (await client.query(cursor)) as Cursor & {
+        _result: QueryResultBase
+      }
 
       let emitted = false
       let rows: any[] = []
       do {
         rows = await cursor.read(10000)
         if (!emitted) {
-          const helpers: ColumnHelper[] = result._result.fields.map(f => {
-            const t = types.get(f.dataTypeID)!
-            const res: ColumnHelper = {
-              name: f.name,
-              nullable: true,
-              db_type: t.typname,
-              type: pg_type_to_type(t),
+          const helpers: Column[] = result._result.fields.map((f) => {
+            const t = types!.get(f.dataTypeID)!
+            // FIXME : should get table ID from _result.fields and get the relation to make sure there is not a not null
+
+            return {
+              column_name: f.name,
+              column_type: pg_type_to_type(t),
+              not_null: t.typnotnull,
             }
-            return res
           })
+          // console.error(helpers)
           emit.collection(q.name, helpers.length ? helpers : undefined)
           emitted = true
         }
@@ -81,44 +110,117 @@ source(async function pg_source() {
   }
 })
 
-function pg_type_to_type(type: PgType): SwlColumnType {
-  const pg_type = type.typname.toLocaleLowerCase()
+function _array(t: PgType, dim: number): Type {
+  return {
+    type: "LIST",
+    value:
+      dim > 1
+        ? _array(types!.get(t.typelem)!, dim - 1)
+        : pg_type_to_type(types!.get(t.typelem)!),
+  }
+}
 
-  if (type.typinput === "record_in" || type.typinput === "array_in") return "json"
+function pg_type_to_type(t: PgType): Type {
+  const pg_type = t.typname.toLocaleLowerCase()
 
-  if (pg_type.startsWith("date") || pg_type.startsWith("time"))
-    return "date"
+  // fixme: needs records
 
-  if (pg_type.startsWith("json"))
-    return "json"
+  // this is an array type
+  if (t.typelem > 0 && t.typinput === "array_in") {
+    return _array(t, t.typndims)
+  }
 
-  if (pg_type.startsWith("int"))
-    return "int"
+  if (t.typbasetype > 0) {
+    // domain
+    return pg_type_to_type(types!.get(t.typbasetype)!)
+  }
 
-  if (pg_type === "bool")
-    return "bool"
+  if (pg_type === "uuid") return "UUID"
+  if (pg_type === "text") return "VARCHAR"
+  if (pg_type === "date") return "DATE"
+  if (pg_type === "json" || pg_type === "jsonb") return "JSON"
+  if (pg_type === "char") return "TINYINT"
+  if (pg_type === "int2") return "SMALLINT"
+  if (pg_type === "int4") return "INTEGER"
+  if (pg_type === "int8") return "BIGINT"
+  if (pg_type === "float4") return "FLOAT"
+  if (pg_type === "float8") return "DOUBLE"
+  if (pg_type === "bool") return "BOOLEAN"
+  if (pg_type === "varchar") return "VARCHAR"
+  if (pg_type === "uuid") return "UUID"
+  if (pg_type === "time") return "TIME"
+  if (pg_type === "hstore") {
+    return { type: "MAP", key: "VARCHAR", value: "VARCHAR" }
+  }
 
-  if (pg_type.includes("char") || pg_type === "text")
-    return "text"
+  throw new Error(`Unknown type: ${pg_type}`)
+}
 
-  return "float"
+export interface PgColumn {
+  name: string
+  typeid: number
+  not_null: boolean
+}
+
+export interface PgRelation {
+  oid: number
+  name: string
+  schema: string
+  columns: PgColumn[]
 }
 
 export interface PgType {
   oid: number
   typname: string
+  typnamespace: number
+  typowner: number
   typlen: number
+  typbyval: boolean
   typtype: string
   typcategory: string
+  typispreferred: boolean
+  typisdefined: boolean
+  typdelim: string
+  typrelid: number
+  typsubscript: string
+  typelem: number
+  typarray: number
   typinput: string
+  typoutput: string
+  typreceive: string
+  typsend: string
+  typmodin: string
+  typmodout: string
+  typanalyze: string
+  typalign: string
+  typstorage: string
+  typnotnull: boolean
+  typbasetype: number
+  typtypmod: number
+  typndims: number
+  typcollation: number
+  typdefaultbin: string | null
+  typdefault: string | null
+  typacl: string | null
 }
 
-async function get_types(client: PgClient) {
-  const types_q = await client.query(/* sql */`select * from pg_type`)
+async function get_relations(
+  client: PgClient
+): Promise<Map<number, PgRelation>> {
+  const relations_q = await client.query(/* sql */ `select * from pg_class`)
+  const rows: Map<number, PgRelation> = relations_q.rows.reduce((acc, item) => {
+    acc.set(item.oid, item)
+    return acc
+  }, new Map())
+  return rows
+}
+
+async function get_types(client: PgClient): Promise<Map<number, PgType>> {
+  const types_q = await client.query(/* sql */ `select * from pg_type`)
   const rows: Map<number, PgType> = types_q.rows.reduce((acc, item) => {
     acc.set(item.oid, item)
     return acc
-  }, new Map)
+  }, new Map())
   return rows
 }
 
@@ -150,7 +252,7 @@ async function get_all_tables_from_schema(client: PgClient, schema: string) {
     GROUP BY t.tbl
   `)
 
-  const dct = {} as {[name: string]: string[]}
+  const dct = {} as { [name: string]: string[] }
   for (let r of tbls.rows) {
     dct[r.tbl] = r.deps
   }
@@ -158,8 +260,7 @@ async function get_all_tables_from_schema(client: PgClient, schema: string) {
   const tables_set = new Set<string>()
   const add_deps = (tbl: string) => {
     for (var t of dct[tbl]) {
-      if (!tables_set.has(t) && t !== tbl)
-        add_deps(t)
+      if (!tables_set.has(t) && t !== tbl) add_deps(t)
     }
     tables_set.add(tbl)
   }
@@ -168,5 +269,8 @@ async function get_all_tables_from_schema(client: PgClient, schema: string) {
     add_deps(tblname)
   }
   let keys = Array.from(tables_set)
-  return keys.map(k => ({ name: k, query: /* sql */ `SELECT * FROM ${k} TBL` }))
+  return keys.map((k) => ({
+    name: k,
+    query: /* sql */ `SELECT * FROM ${k} TBL`,
+  }))
 }

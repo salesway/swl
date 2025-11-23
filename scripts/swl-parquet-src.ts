@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { source, emit } from "../src/index"
-import { DescribeResult } from "../src/schema"
 import { optparser, arg, param, oneof } from "../src/optparse"
 
 import * as path from "path"
 
 import * as DB from "@duckdb/node-api"
+import { create_duckdb_helper } from "./duckdb-src-common"
 
 const selection = optparser(
   arg("file").required(),
@@ -28,11 +28,10 @@ source(async () => {
     const sql = `SELECT ${file.columns ?? "*"} FROM read_parquet('${
       file.file
     }')`
-    const desc = await db.runAndReadAll("DESCRIBE " + sql)
-    console.error(desc.getRowObjectsJson() as DescribeResult[])
+    const columns = await create_duckdb_helper(db, sql)
 
     if (prev_collection !== collection) {
-      await emit.collection(collection)
+      await emit.collection(collection, columns)
       prev_collection = collection
     }
 

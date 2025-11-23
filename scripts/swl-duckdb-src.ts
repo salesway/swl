@@ -11,7 +11,7 @@ import {
   log3,
 } from "../src/index"
 import * as DB from "@duckdb/node-api"
-import { DescribeResult, parse_duckdb_describe_type } from "schema"
+import { Column, DescribeResult, parse_duckdb_describe_type } from "schema"
 
 let src_parser = optparser(default_col_sql_src_opts)
 
@@ -65,16 +65,16 @@ source(async () => {
       await db.runAndReadAll(`DESCRIBE ${sql}`)
     ).getRowObjectsJson() as DescribeResult[]
 
-    description.map((desc) => {
-      parse_duckdb_describe_type(desc.column_type)
-    })
-
-    // console.error(description.getRowObjectsJson() as DescribeResult[])
+    const columns: Column[] = description.map((desc) => ({
+      column_name: desc.column_name,
+      column_type: parse_duckdb_describe_type(desc.column_type),
+      not_null: desc.null,
+    }))
 
     var stmt = await db.prepare(sql)
 
     const reader = await stmt.streamAndRead()
-    emit.collection(source.name)
+    emit.collection(source.name, columns)
 
     let last = 0
     do {
