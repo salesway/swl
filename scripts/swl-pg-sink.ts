@@ -412,23 +412,6 @@ async function collection_handler(
         DROP TABLE ${temp_table_name}
       `)
 
-      // The following instructions are used to reset sequences if we have have forced
-      // id blocks.
-      // First, we get all the sequences associated with this table
-      const seq_res = await Q(/* sql */ `
-        SELECT
-          column_name as name,
-          regexp_replace(
-            regexp_replace(column_default, '[^'']+''', ''),
-            '''.*',
-            ''
-          ) as seq
-        FROM information_schema.columns
-        WHERE table_name = '${table_name}'
-          AND table_schema = '${schema}'
-          AND column_default like '%nextval(%'
-      `)
-
       /** Recreate the indixes we dropped previously */
       if (options.drop_indexes && indices.length > 0) {
         for (let index of indices) {
@@ -437,9 +420,32 @@ async function collection_handler(
         }
       }
 
+      // The following instructions are used to reset sequences if we have have forced
+      // id blocks.
+      // First, we get all the sequences associated with this table
+      const seq_res = await Q(/* sql */ `
+        SELECT
+          column_name as name,
+          case when
+              is_identity = 'YES' then pg_get_serial_sequence('${table}', column_name)
+            else
+              regexp_replace(
+                regexp_replace(column_default, '[^'']+''', ''),
+                '''.*',
+                ''
+              )
+          end as seq,
+          pg_get_serial_sequence('${table}', column_name) as idseq
+        FROM information_schema.columns
+        WHERE table_name = '${table_name}'
+          AND table_schema = '${schema}'
+          AND (column_default like '%nextval(%' OR is_identity = 'YES')
+      `)
+
       const sequences = seq_res.rows as { name: string; seq: string }[]
 
       for (var seq of sequences) {
+        if (!seq.seq) continue
         log2(`Resetting sequence ${seq.seq}`)
         await Q(/* sql */ `
           DO $$
