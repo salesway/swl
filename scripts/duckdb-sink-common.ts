@@ -165,6 +165,7 @@ export async function duckdb_sink(
     },
     async end() {
       await db.run("COMMIT")
+      await db.run("CHECKPOINT")
       db_inst.closeSync()
 
       log2("commit")
