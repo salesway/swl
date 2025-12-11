@@ -71,25 +71,45 @@ source(async () => {
       not_null: desc.null,
     }))
 
-    var stmt = await db.prepare(sql)
+    var stmt = await db.prepare(`SELECT to_json(J) as json FROM (${sql}) J`)
+    const stream = await stmt.stream()
 
-    const reader = await stmt.streamAndRead()
+    // const reader = await stmt.streamAndRead()
     emit.collection(source.name, columns)
 
-    let last = 0
     do {
-      await reader.readUntil(last + 2048)
-      last = reader.currentRowCount
-
-      for (const row of reader.getRowObjectsJson()) {
-        emit.data(row)
-      }
-
-      if (reader.done) {
+      const chunk = await stream.fetchChunk()
+      if (chunk == null || chunk.rowCount === 0) {
         break
+      }
+      for (const row of chunk.getRowObjects(["json"])) {
+        emit.data(JSON.parse(row.json as string))
       }
     } while (true)
   }
+
+  //   let last = 0
+  //   let cnt = 0
+  //   do {
+  //     let prev = last
+  //     await reader.readUntil(last + 2048)
+  //     await reader.getRowObjectsJson
+
+  //     last = reader.currentRowCount
+  //     console.error(last, prev)
+
+  //     console.error(reader.getRowObjectsJson().length, "rows")
+  //     for (const row of reader.getRowObjectsJson()) {
+  //       cnt++
+  //       emit.data(row)
+  //     }
+  //     console.error(cnt, "emitted")
+
+  //     if (reader.done) {
+  //       break
+  //     }
+  //   } while (true)
+  // }
 
   log2("finished sending")
   db_inst.closeSync()
