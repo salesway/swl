@@ -69,32 +69,28 @@ source(async function pg_source() {
       : await get_all_tables_from_schema(client, opts.schema)
 
     for (let q of queries) {
-      const cursor = new Cursor(q.query)
-      const result = (await client.query(cursor)) as Cursor & {
-        _result: QueryResultBase
-      }
+      const for_helpers = await client.query(q.query + " limit 1")
+      const helpers = for_helpers.fields.map((f) => {
+        const t = types!.get(f.dataTypeID)!
+        return {
+          column_name: f.name,
+          column_type: pg_type_to_type(t),
+          not_null: t.typnotnull,
+        }
+      })
 
-      let emitted = false
+      const cursor = new Cursor(
+        `select row_to_json(Q) as row from (${q.query}) Q`
+      )
+
+      ;(await client.query(cursor)) as Cursor
+
       let rows: any[] = []
+      emit.collection(q.name, helpers.length ? helpers : undefined)
       do {
         rows = await cursor.read(10000)
-        if (!emitted) {
-          const helpers: Column[] = result._result.fields.map((f) => {
-            const t = types!.get(f.dataTypeID)!
-            // FIXME : should get table ID from _result.fields and get the relation to make sure there is not a not null
-
-            return {
-              column_name: f.name,
-              column_type: pg_type_to_type(t),
-              not_null: t.typnotnull,
-            }
-          })
-          // console.error(helpers)
-          emit.collection(q.name, helpers.length ? helpers : undefined)
-          emitted = true
-        }
         for (let r of rows) {
-          emit.data(r)
+          emit.data(r.row)
         }
       } while (rows.length > 0)
     }
